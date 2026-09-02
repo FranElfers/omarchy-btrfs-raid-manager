@@ -48,43 +48,49 @@ For in-depth architectural details, see [docs/architecture.md](docs/architecture
 
 ---
 
-## Requirements
+## Quick Start: Single-Command Installation
 
-* **Operating System**: Linux with systemd
-* **Desktop**: Omarchy Desktop Environment with Quickshell
-* **Filesystem Utilities**: `btrfs-progs` (v6.0+)
-* **System Daemons**: `udisks2`, `systemd`, `polkit`
-* **Go Compiler**: Go 1.22+ (for building from source)
+Install and enable the plugin directly in Omarchy with a single command:
+
+```bash
+omarchy plugin add https://github.com/franelfers/omarchy-btrfs-raid-manager.git --enable
+```
+
+The applet will automatically initialize, launch the resident monitoring daemon, and appear in your Omarchy top bar immediately.
 
 ---
 
-## Installation & Setup
+## Dependencies & Recommendations
 
-### 1. Build the Binary
+The applet is designed for **zero-friction usage** and **graceful degradation**:
+
+* **Base Requirements**:
+  * Omarchy Desktop Environment with Quickshell
+  * Standard system services (`systemd`, `udisks2`, Linux kernel `sysfs`)
+* **Recommended System Tools**:
+  * `btrfs-progs`: Provides `btrfs` utilities for scrub, balance, and topology inspection.
+  * `smartmontools`: *(Soft recommendation)* Provides `smartctl` for drive temperature and S.M.A.R.T. health telemetry. If `smartmontools` is not installed, the applet degrades gracefully by marking drive S.M.A.R.T. status as `SMART N/A` without crashing or throwing errors.
+
+To install recommended tools on Arch/Omarchy:
 ```bash
-git clone https://github.com/franelfers/omarchy-btrfs-raid-manager.git
-cd omarchy-btrfs-raid-manager
-go build -o bin/raid-manager ./cmd/raid-manager
+omarchy pkg add btrfs-progs smartmontools
 ```
 
-### 2. Install Polkit Policy & Systemd Units
-```bash
-# Install Polkit policy for disk mutation operations
-sudo cp polkit/org.omarchy.btrfs.raidmanager.policy /usr/share/polkit-1/actions/
+---
 
-# Install parametric maintenance units
+## Optional: Background Timers & Polkit Policy
+
+Basic pool monitoring, capacity inspection, and mount/unmount actions work immediately out of the box without root intervention.
+
+For optional background scheduled maintenance (monthly scrub / weekly balance systemd timers) and custom Polkit elevation for disk additions:
+
+```bash
+# Optional: Install scheduled maintenance timer units
 sudo cp systemd/btrpool-* /etc/systemd/system/
 sudo systemctl daemon-reload
-```
 
-### 3. Install Plugin into Omarchy
-Link or clone into your Omarchy plugins directory:
-```bash
-mkdir -p ~/.config/omarchy/plugins
-ln -s "$(pwd)" ~/.config/omarchy/plugins/org.omarchy.btrfs-raid-manager
-
-# Enable the plugin in Omarchy
-omarchy plugin enable org.omarchy.btrfs-raid-manager
+# Optional: Install Polkit policy for disk add/remove/replace actions
+sudo cp polkit/org.omarchy.btrfs.raidmanager.policy /usr/share/polkit-1/actions/
 ```
 
 ---

@@ -1,0 +1,52 @@
+## 1. Core Architectural Constraints
+
+* **Host Integration Boundary:** Quickshell does not provide generic D-Bus introspection in QML. All system communication occurs strictly via `Quickshell.Io.Process` consuming standard output from the Go companion binary.
+* **Zero Custom Polling:** Never implement sleep/polling loops in QML or Go. The Go background daemon (`raid-manager stream`) must rely solely on D-Bus signals (`PropertiesChanged` from UDisks2 and systemd).
+* **No `inotify` on `/proc/mounts`:** Mount and unmount transitions are tracked exclusively via `org.freedesktop.UDisks2.Filesystem` D-Bus signals.
+* **Lifecycle & Orphan Prevention:** The resident Go daemon must block on `io.Copy(io.Discard, os.Stdin)` or monitor `os.Stdin` for `io.EOF`, exiting immediately if Quickshell terminates or closes the execution pipe.
+* **Minimal Polkit Surface:** Do not write custom Polkit rules for `mount`, `unmount`, or timer operations. Delegate them to native UDisks2 and systemd interfaces. The file `polkit/org.omarchy.btrfs.raidmanager.policy` is reserved solely for destructive mutations (`add`, `remove`, `replace`).
+
+---
+
+## 2. Technical Stack & Standards
+
+* **Go Modules (`cmd/`, `internal/`):**
+  * Target Go version matching project configuration.
+  * Use `godbus/dbus` for D-Bus IPC.
+  * Parse structured JSON from system tools using `btrfs --format=json` (no plain text regex parsing).
+  * Keep dependencies minimal; avoid heavy frameworks.
+* **QML & UI (`qml/`):**
+  * Adhere strictly to Omarchy SDK standards.
+  * Consume `raid-manager stream` via `Quickshell.Io.Process` piped into `SplitParser` for NDJSON handling.
+  * Visual styling must dynamically bind to `Omarchy.Theme` tokens.
+  * All icon references must use vector `.svg` assets in `assets/`.
+* **Systemd Maintenance (`systemd/`):**
+  * Balance and scrub routines must run as parametric templates: `btrpool-scrub@.service` and `btrpool-balance@.service`.
+
+---
+
+## 3. Workflow & Contribution Commands
+
+Before committing changes, agents must ensure all validations pass:
+
+```bash
+# Linting & verification
+golangci-lint run ./...
+qmllint qml/**/*.qml
+systemd-analyze verify systemd/*
+
+# Testing
+go test -v -race ./...
+```
+
+---
+
+## 4. Code Generation Rules
+
+1. **Discrete vs. Stream Logic:** Ensure background monitoring stays inside `cmd/raid-manager` under the `stream` verb. Privileged actions belong under `admin <subcommand>`.
+
+
+2. **Error Emission:** Output machine-readable JSON errors to `stderr` from CLI invocations to allow clear reporting in the QML Flyout.
+
+
+3. **No Phantom Files:** Do not create temporary shell wrappers, ad-hoc state sockets, or standalone cron scripts. Rely solely on the defined repository structure.

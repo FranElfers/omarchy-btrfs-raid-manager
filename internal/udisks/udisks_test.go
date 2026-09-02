@@ -29,3 +29,21 @@ func TestDeviceInfoParsing(t *testing.T) {
 		t.Errorf("expected 27.5 C, got %f", info.SmartTemperatureC)
 	}
 }
+
+func TestSmartGracefulDegradation(t *testing.T) {
+	// When SMART is not supported or smartctl is missing, info must degrade gracefully
+	info := DeviceInfo{
+		DevNode:     "/dev/nvme0n1",
+		SmartStatus: "unknown",
+	}
+
+	// probeSmartctl on non-existent or unconfigured drive degrades without error
+	probeSmartctl(t.Context(), info.DevNode, &info)
+
+	if info.SmartFailing {
+		t.Errorf("expected SmartFailing to be false")
+	}
+	if info.SmartStatus != "disabled" && info.SmartStatus != "passed" {
+		t.Errorf("expected SmartStatus to be disabled or passed, got %s", info.SmartStatus)
+	}
+}

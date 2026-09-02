@@ -117,7 +117,7 @@ Rectangle {
           if (device.smart_status === "failing") return Color.urgent
           if (device.smart_status === "warning") return Color.warning
           if (device.smart_status === "passed") return "#22c55e"
-          return Color.foreground
+          return Qt.darker(Color.foreground, 1.4)
         }
         text: {
           if (device.missing) return "MISSING"
@@ -130,7 +130,8 @@ Rectangle {
             }
             return t
           }
-          return "UNKNOWN"
+          if (device.smart_status === "disabled" || device.smart_status === "unsupported") return "SMART N/A"
+          return "SMART N/A"
         }
       }
     }

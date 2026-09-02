@@ -85,8 +85,13 @@ Ui.BarWidget {
   Process {
     id: streamProcess
     command: {
-      var localBin = Qt.resolvedUrl("../bin/raid-manager").toString().replace(/^file:\/\//, "")
-      return [localBin, "stream"]
+      var pluginDir = Qt.resolvedUrl("..").toString().replace(/^file:\/\//, "")
+      var localBin = pluginDir + "/bin/raid-manager"
+      return [
+        "/bin/sh",
+        "-c",
+        "if [ -x \"" + localBin + "\" ]; then exec \"" + localBin + "\" stream; elif command -v raid-manager >/dev/null 2>&1; then exec raid-manager stream; elif command -v go >/dev/null 2>&1; then (cd \"" + pluginDir + "\" && go build -o bin/raid-manager ./cmd/raid-manager) && exec \"" + localBin + "\" stream; else echo 'raid-manager binary not found' >&2; exit 1; fi"
+      ]
     }
     running: true
 
@@ -112,8 +117,14 @@ Ui.BarWidget {
     running: false
 
     function execute(args, cb) {
-      var localBin = Qt.resolvedUrl("../bin/raid-manager").toString().replace(/^file:\/\//, "")
-      command = [localBin, "admin"].concat(args)
+      var pluginDir = Qt.resolvedUrl("..").toString().replace(/^file:\/\//, "")
+      var localBin = pluginDir + "/bin/raid-manager"
+      var argStr = args.map(function(a) { return "'" + String(a).replace(/'/g, "'\\''") + "'" }).join(" ")
+      command = [
+        "/bin/sh",
+        "-c",
+        "if [ -x \"" + localBin + "\" ]; then exec \"" + localBin + "\" admin " + argStr + "; elif command -v raid-manager >/dev/null 2>&1; then exec raid-manager admin " + argStr + "; else echo 'raid-manager binary not found' >&2; exit 1; fi"
+      ]
       callback = cb
       running = true
     }

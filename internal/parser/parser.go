@@ -170,6 +170,9 @@ func AggregatePool(
 			if pDev.DevNode == "" && len(sysData.Devices) > 0 {
 				pDev.DevNode = "/dev/" + sysData.Devices[0]
 			}
+			if pDev.SmartStatus == "" || pDev.SmartStatus == "unknown" {
+				pDev.SmartStatus = "disabled"
+			}
 		}
 
 		info.Devices = append(info.Devices, pDev)

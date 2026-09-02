@@ -56,6 +56,13 @@ func NewClient(binPath string) *RealClient {
 
 // GetScrubStatus queries scrub progress on a mountpoint or device.
 func (c *RealClient) GetScrubStatus(ctx context.Context, target string) (*ScrubStatus, error) {
+	if _, err := exec.LookPath(c.BtrfsPath); err != nil {
+		return &ScrubStatus{
+			Active:     false,
+			StatusText: "unavailable",
+		}, nil
+	}
+
 	// First attempt JSON if supported by btrfs-progs version
 	cmdJSON := exec.CommandContext(ctx, c.BtrfsPath, "--format", "json", "scrub", "status", target)
 	outJSON, errJSON := cmdJSON.Output()
@@ -84,6 +91,13 @@ func (c *RealClient) GetScrubStatus(ctx context.Context, target string) (*ScrubS
 
 // GetBalanceStatus queries balance progress on a mountpoint.
 func (c *RealClient) GetBalanceStatus(ctx context.Context, target string) (*BalanceStatus, error) {
+	if _, err := exec.LookPath(c.BtrfsPath); err != nil {
+		return &BalanceStatus{
+			Active:     false,
+			StatusText: "unavailable",
+		}, nil
+	}
+
 	cmdJSON := exec.CommandContext(ctx, c.BtrfsPath, "--format", "json", "balance", "status", target)
 	outJSON, errJSON := cmdJSON.Output()
 	if errJSON == nil && len(outJSON) > 0 {
@@ -99,6 +113,9 @@ func (c *RealClient) GetBalanceStatus(ctx context.Context, target string) (*Bala
 
 // DeviceAdd adds a new block device to a mounted btrfs pool.
 func (c *RealClient) DeviceAdd(ctx context.Context, device, mountpoint string) error {
+	if _, err := exec.LookPath(c.BtrfsPath); err != nil {
+		return fmt.Errorf("btrfs tool not found in PATH: %w", err)
+	}
 	cmd := exec.CommandContext(ctx, c.BtrfsPath, "device", "add", "-f", device, mountpoint)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -109,6 +126,9 @@ func (c *RealClient) DeviceAdd(ctx context.Context, device, mountpoint string) e
 
 // DeviceRemove removes a block device from a mounted btrfs pool.
 func (c *RealClient) DeviceRemove(ctx context.Context, device, mountpoint string) error {
+	if _, err := exec.LookPath(c.BtrfsPath); err != nil {
+		return fmt.Errorf("btrfs tool not found in PATH: %w", err)
+	}
 	cmd := exec.CommandContext(ctx, c.BtrfsPath, "device", "remove", device, mountpoint)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -119,6 +139,9 @@ func (c *RealClient) DeviceRemove(ctx context.Context, device, mountpoint string
 
 // DeviceReplace initiates replacing an existing device with a new one.
 func (c *RealClient) DeviceReplace(ctx context.Context, oldDev, newDev, mountpoint string) error {
+	if _, err := exec.LookPath(c.BtrfsPath); err != nil {
+		return fmt.Errorf("btrfs tool not found in PATH: %w", err)
+	}
 	cmd := exec.CommandContext(ctx, c.BtrfsPath, "replace", "start", "-B", "-f", oldDev, newDev, mountpoint)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

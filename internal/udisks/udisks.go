@@ -2,7 +2,9 @@ package udisks
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os/exec"
 	"strings"
 
 	"github.com/godbus/dbus/v5"
@@ -157,11 +159,64 @@ func (c *Client) InspectBlockDevices(ctx context.Context) (map[string]DeviceInfo
 			}
 		}
 
+		// If SMART was not provided via UDisks2 ATA interface, attempt optional smartctl probe
+		probeSmartctl(ctx, devNode, &info)
+
 		result[devNode] = info
 		result[baseName] = info
 	}
 
 	return result, nil
+}
+
+// probeSmartctl optionally queries smartctl if smartctl is installed in PATH.
+// If smartctl is unavailable or fails, it degrades gracefully by marking SMART attributes disabled.
+func probeSmartctl(ctx context.Context, devNode string, info *DeviceInfo) {
+	// If already supported and passed from UDisks2, no need to query smartctl
+	if info.SmartSupported && info.SmartStatus != "unknown" {
+		return
+	}
+
+	smartctlPath, err := exec.LookPath("smartctl")
+	if err != nil {
+		// smartctl is not installed; degrade cleanly
+		if !info.SmartSupported {
+			info.SmartStatus = "disabled"
+		}
+		return
+	}
+
+	cmd := exec.CommandContext(ctx, smartctlPath, "-j", "-H", devNode)
+	out, err := cmd.Output()
+	if err != nil && len(out) == 0 {
+		if !info.SmartSupported {
+			info.SmartStatus = "disabled"
+		}
+		return
+	}
+
+	var payload struct {
+		SmartStatus struct {
+			Passed bool `json:"passed"`
+		} `json:"smart_status"`
+		Temperature struct {
+			Current float64 `json:"current"`
+		} `json:"temperature"`
+	}
+	if err := json.Unmarshal(out, &payload); err == nil {
+		info.SmartSupported = true
+		if payload.SmartStatus.Passed {
+			info.SmartStatus = "passed"
+		} else {
+			info.SmartStatus = "failing"
+			info.SmartFailing = true
+		}
+		if payload.Temperature.Current > 0 {
+			info.SmartTemperatureC = payload.Temperature.Current
+		}
+	} else if !info.SmartSupported {
+		info.SmartStatus = "disabled"
+	}
 }
 
 // MountDevice mounts a block device using UDisks2 Filesystem.Mount.

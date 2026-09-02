@@ -1,0 +1,12 @@
+[Unit]
+Description=Monthly Btrfs scrub timer for %f
+Documentation=man:btrfs-scrub(8)
+PartOf=btrpool-scrub@%i.service
+
+[Timer]
+OnCalendar=monthly
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

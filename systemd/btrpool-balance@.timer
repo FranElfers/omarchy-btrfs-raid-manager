@@ -1,0 +1,12 @@
+[Unit]
+Description=Weekly Btrfs balance timer for %f
+Documentation=man:btrfs-balance(8)
+PartOf=btrpool-balance@%i.service
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

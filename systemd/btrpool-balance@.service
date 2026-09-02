@@ -1,0 +1,11 @@
+[Unit]
+Description=Btrfs filtered balance on %f
+Documentation=man:btrfs-balance(8)
+ConditionPathIsMountPoint=%f
+
+[Service]
+Type=simple
+Nice=19
+IOSchedulingClass=idle
+KillSignal=SIGINT
+ExecStart=/usr/bin/btrfs balance start -dusage=50 -musage=50 %f

@@ -1,0 +1,15 @@
+# Binaries
+bin/
+/raid-manager
+
+# Test artifacts and coverage
+*.out
+*.test
+coverage.txt
+
+# Editor and OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store

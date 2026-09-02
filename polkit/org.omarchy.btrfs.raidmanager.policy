@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD polkit Policy Configuration 1.0//EN"
+"http://www.freedesktop.org/software/polkit/policyconfig-1.dtd">
+<policyconfig>
+  <vendor>Omarchy Btrfs RAID Manager</vendor>
+  <vendor_url>https://github.com/franelfers/omarchy-btrfs-raid-manager</vendor_url>
+
+  <action id="org.omarchy.btrfs.raidmanager.device-add">
+    <description>Add a block device to Btrfs RAID pool</description>
+    <message>Authentication is required to add a block device to the storage pool</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.omarchy.btrfs.raidmanager.device-remove">
+    <description>Remove a block device from Btrfs RAID pool</description>
+    <message>Authentication is required to remove a device from the storage pool</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.omarchy.btrfs.raidmanager.device-replace">
+    <description>Replace a block device in Btrfs RAID pool</description>
+    <message>Authentication is required to replace a device in the storage pool</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.omarchy.btrfs.raidmanager.admin">
+    <description>Run Btrfs RAID Manager administrative operations</description>
+    <message>Authentication is required to perform storage pool administrative operations</message>
+    <icon_name>drive-harddisk</icon_name>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/raid-manager</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
+</policyconfig>

@@ -1,0 +1,11 @@
+[Unit]
+Description=Btrfs scrub on %f
+Documentation=man:btrfs-scrub(8)
+ConditionPathIsMountPoint=%f
+
+[Service]
+Type=simple
+Nice=19
+IOSchedulingClass=idle
+KillSignal=SIGINT
+ExecStart=/usr/bin/btrfs scrub start -B %f

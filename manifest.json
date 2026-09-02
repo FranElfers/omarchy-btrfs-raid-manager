@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "org.omarchy.btrfs-raid-manager",
+  "name": "Btrfs RAID Manager",
+  "version": "1.0.0",
+  "author": "franelfers",
+  "license": "GPL-3.0",
+  "description": "Omarchy top-bar applet to inspect, mount, and manage Btrfs RAID1 storage pools.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "qml/Applet.qml"
+  },
+  "barWidget": {
+    "displayName": "Btrfs RAID Manager",
+    "description": "Inspect, mount, and manage Btrfs RAID1 storage pools.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  },
+  "repository": "https://github.com/franelfers/omarchy-btrfs-raid-manager"
+}

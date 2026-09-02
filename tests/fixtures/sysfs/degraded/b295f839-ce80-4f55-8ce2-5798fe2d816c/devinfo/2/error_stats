@@ -1,0 +1,5 @@
+write_errs 12
+read_errs 4
+flush_errs 0
+corruption_errs 1
+generation_errs 0

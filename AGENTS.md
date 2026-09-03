@@ -1,72 +1,43 @@
-## Core Architectural Constraints
+## Hard Constraints (Never Violate)
 
-- **Host Integration Boundary:** Quickshell does not provide generic D-Bus introspection in QML. All system communication occurs strictly via `Quickshell.Io.Process` consuming standard output from the Go companion binary.
-- **Zero Custom Polling:** Never implement sleep/polling loops in QML or Go. The Go background daemon (`raid-manager stream`) must rely solely on D-Bus signals (`PropertiesChanged` from UDisks2 and systemd).
-- **No `inotify` on `/proc/mounts`:** Mount and unmount transitions are tracked exclusively via `org.freedesktop.UDisks2.Filesystem` D-Bus signals.
-- **Lifecycle & Orphan Prevention:** The resident Go daemon must block on `io.Copy(io.Discard, os.Stdin)` or monitor `os.Stdin` for `io.EOF`, exiting immediately if Quickshell terminates or closes the execution pipe.
-- **Minimal Polkit Surface:** Do not write custom Polkit rules for `mount`, `unmount`, or timer operations. Delegate them to native UDisks2 and systemd interfaces. The file `polkit/org.omarchy.btrfs.raidmanager.policy` is reserved solely for destructive mutations (`add`, `remove`, `replace`).
+- [Git] NEVER commit automatically. Commit ONLY on explicit user prompt "commit" using global OS identity and Conventional Commits 1.0.0.
+- [IPC] Quickshell QML cannot read D-Bus directly. Spawn companion Go binary via `Quickshell.Io.Process` and read stdout.
+- [Polkit] FORBIDDEN: custom Polkit rules for mount, unmount, or timer tasks. Use UDisks2/systemd standard interfaces. Restrict `polkit/org.omarchy.btrfs.raidmanager.policy` strictly to destructive actions (`add`, `remove`, `replace`).
+- [Structure] FORBIDDEN: temporary shell scripts, cron jobs, or custom sockets. Adhere strictly to existing repo layout.
 
----
+## Architecture & Concurrency
 
-## Technical Stack & Standards
+- [Events] MUST use D-Bus signals exclusively (`PropertiesChanged` via UDisks2/systemd). FORBIDDEN: sleep loops, polling, or `inotify` on `/proc/mounts`.
+- [Mounts] Track mounts and unmounts solely via `org.freedesktop.UDisks2.Filesystem` signals.
+- [Lifecycle] Companion Go daemon must monitor `os.Stdin` (`io.EOF` or `io.Copy(io.Discard, os.Stdin)`) and terminate immediately when Quickshell closes stdin.
 
-- **Go Modules (`cmd/`, `internal/`):**
-    - Target Go version matching project configuration.
-    - Use `godbus/dbus` for D-Bus IPC.
-    - Parse structured JSON from system tools using `btrfs --format=json` (no plain text regex parsing).
-    - Keep dependencies minimal; avoid heavy frameworks.
-- **QML & UI (`qml/`):**
-    - Adhere strictly to Omarchy SDK standards.
-    - Consume `raid-manager stream` via `Quickshell.Io.Process` piped into `SplitParser` for NDJSON handling.
-    - Visual styling must dynamically bind to `Omarchy.Theme` tokens.
-    - All icon references must use vector `.svg` assets in `assets/`.
-- **Systemd Maintenance (`systemd/`):**
-    - Balance and scrub routines must run as parametric templates: `btrpool-scrub@.service` and `btrpool-balance@.service`.
+## Code Standards
 
----
+- [Go] Match repo Go version. Use `godbus/dbus`. Parse JSON output (`btrfs --format=json`); never parse text via regex. Avoid heavy external frameworks.
+- [CLI] Daemon logic belongs in `cmd/raid-manager stream`; privileged commands belong in `admin <subcommand>`. Output errors as JSON to `stderr` for QML consumption.
+- [Systemd] Implement maintenance jobs strictly as template units: `btrpool-scrub@.service` and `btrpool-balance@.service`.
 
-## Workflow & Contribution Commands
+## QML & Styling
 
-Before committing changes, agents must ensure all validations pass:
+- [SDK] Follow Omarchy SDK. Pipe `raid-manager stream` from `Quickshell.Io.Process` into `SplitParser` for NDJSON.
+- [Theme] FORBIDDEN: hardcoded colors, radii, or border math. Source all visual values through `ThemeStyle.js` or `ThemeHelper` state functions (`hovered`, `active`, `urgent`).
+- [Icons] Use vector `.svg` from `assets/`. Set `sourceSize: Qt.size(16, 16)`. Tint via `bar.foreground` or semantic `Omarchy.Theme` tokens.
+- [Tooltips] FORBIDDEN: native Qt Quick `ToolTip`. In top bar use `bar.showTooltip(this, text)` / `bar.hideTooltip(this)`. In flyout use custom themed components.
+- [Layout] Prevent clipping: calculate flyout height from `contentLayout.implicitHeight` + padding or use `ScrollView`. Keep collapsed bar clean: never mix manual anchors with `RowLayout`/`ColumnLayout`.
+
+## Validation Commands
+
+Run before every commit:
 
 ```bash
-# Linting & verification
 golangci-lint run ./...
 qmllint qml/**/*.qml
 systemd-analyze verify systemd/*
-
-# Testing
 go test -v -race ./...
 ```
 
----
+## Documentation & Comments
 
-## Code Generation Rules
-
-1. **Discrete vs. Stream Logic:** Ensure background monitoring stays inside `cmd/raid-manager` under the `stream` verb. Privileged actions belong under `admin <subcommand>`.
-
-2. **Error Emission:** Output machine-readable JSON errors to `stderr` from CLI invocations to allow clear reporting in the QML Flyout.
-
-3. **No Phantom Files:** Do not create temporary shell wrappers, ad-hoc state sockets, or standalone cron scripts. Rely solely on the defined repository structure.
-
----
-
-## UI, Theming & Layout Directives (QML)
-
-- **Zero Native Qt Tooltips:** Never use native Qt Quick `ToolTip.text`, `ToolTip.visible`, or unstyled `ToolTip { ... }` blocks.
-    - In the top bar: Tooltips are strictly delegated to the Omarchy host shell via `bar.showTooltip(this, text)` on `containsMouse: true` and `bar.hideTooltip(this)` on exit.
-    - Inside the Flyout: All action buttons and toggle controls must use custom, theme-styled tooltip overlays matching `Omarchy.Theme` tokens.
-- **Top-Bar Icon Theming & Sizing:** Never render icons in raw or hardcoded colors.
-    - Tint all SVG glyphs dynamically using `bar.foreground` or semantic `Omarchy.Theme` tokens (accent, active pulse, urgent/error).
-    - Use `sourceSize: Qt.size(16, 16)` to guarantee crisp vector rasterization on high-DPI displays.
-- **Flyout Sizing & Bounding:** Never hardcode fixed window `height` in `Flyout.qml`. Root height must strictly track `contentLayout.implicitHeight` plus outer padding (or wrap inside a `Flickable`/`ScrollView`) so bottom sections like "Automated Maintenance" are never clipped.
-- **Layout Isolation:** Keep the collapsed bar widget simple. Never mix manual anchors (`anchors.centerIn`, `anchors.left`) with `RowLayout`/`ColumnLayout`, and never render multiple competing text nodes in the bar.
-
----
-
-## Functional Styling & Design System Consistency
-
-- **Single Source of Truth for Styling:** Never define ad-hoc `radius`, inline border math, or hardcoded hex/rgba values inside individual QML components. All visual attributes must be derived from the centralized functional helper (`ThemeStyle.js` / `ThemeHelper`).
-- **Functional Token Composition:** Use pure functions that accept current interaction state flags (`hovered`, `active`, `urgent`) and return standardized theme values (e.g., background tints, border highlights, and standard corner radii).
-- **Strict Shape Consistency:** All interactive surfaces (buttons, toggles, badges, flyout cards, and tooltips) must conform strictly to the design system's radius scale. Disconnected square corners alongside rounded elements are strictly prohibited.
-- **Documentation Contract:** Any new UI helper or factory function added must be documented with parameter contracts in `docs/architecture.md` so subsequent agent iterations reuse them by default.
+- Applies only to docs and comments, never to source code.
+- Write in concise, plain English (active voice, zero filler words, clear imperative instructions).
+- Document new UI helper functions and parameters in `docs/architecture.md`.

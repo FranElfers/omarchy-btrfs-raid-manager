@@ -1,6 +1,4 @@
 import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -66,7 +64,7 @@ Item {
   }
 
   // Commit identification for live verification
-  property string commitId: "654381c"
+  property string commitId: "e7b40f8"
   readonly property bool tooltipHovered: visible && opacity > 0 && mouseArea.containsMouse && !root.opened
 
   Process {
@@ -304,10 +302,6 @@ Item {
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton | Qt.RightButton
 
-    ToolTip.visible: mouseArea.containsMouse && !root.opened
-    ToolTip.delay: 200
-    ToolTip.text: root.tooltipSummary
-
     onEntered: {
       if (root.bar && root.tooltipSummary !== "" && !root.opened) {
         root.bar.showTooltip(root, root.tooltipSummary)
@@ -324,6 +318,18 @@ Item {
       if (mouse.button === Qt.LeftButton) {
         root.toggle()
       }
+    }
+  }
+
+  onOpenedChanged: {
+    if (root.opened && root.bar) {
+      root.bar.hideTooltip(root)
+    }
+  }
+
+  Component.onDestruction: {
+    if (root.bar) {
+      root.bar.hideTooltip(root)
     }
   }
 }

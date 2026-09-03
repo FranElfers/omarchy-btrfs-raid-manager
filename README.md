@@ -58,6 +58,23 @@ omarchy plugin add https://github.com/franelfers/omarchy-btrfs-raid-manager.git 
 
 The applet will automatically initialize, launch the resident monitoring daemon, and appear in your Omarchy top bar immediately.
 
+### Local / Offline Installation (No GitHub required)
+
+If you have downloaded or cloned the repository locally, run the installer:
+
+```bash
+# Copy install and immediately enable in top bar
+./install.sh --enable
+
+# Or symlink into Omarchy for active development
+./install.sh --link --enable
+```
+
+To uninstall:
+```bash
+./install.sh --remove
+```
+
 ---
 
 ## Dependencies & Recommendations

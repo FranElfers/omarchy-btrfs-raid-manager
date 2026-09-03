@@ -66,7 +66,7 @@ Item {
   }
 
   // Commit identification for live verification
-  property string commitId: "cd0074e"
+  property string commitId: "654381c"
   readonly property bool tooltipHovered: visible && opacity > 0 && mouseArea.containsMouse && !root.opened
 
   Process {

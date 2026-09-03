@@ -1,14 +1,25 @@
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui as Ui
 import "Format.js" as Format
 
-Ui.BarWidget {
+Item {
   id: root
-  moduleName: "org.omarchy.btrfs-raid-manager"
+
+  // Injected host properties from Bar
+  property QtObject bar: null
+  property string moduleName: "org.omarchy.btrfs-raid-manager"
+  property var settings: ({})
+
+  readonly property bool vertical: bar ? bar.vertical === true : false
+  readonly property real padding: 5
+  readonly property int iconSize: bar ? Math.max(14, Math.round(bar.barSize * 0.6)) : 16
+
+  implicitHeight: bar ? bar.barSize : 26
+  implicitWidth: bar && bar.vertical ? (bar.barSize || 28) : (contentLayout.implicitWidth + (padding * 2))
 
   // Parsed state from resident daemon
   property var pools: []
@@ -29,10 +40,10 @@ Ui.BarWidget {
   readonly property string badgeText: {
     if (!primaryPool) return ""
     if (primaryPool.scrub && primaryPool.scrub.active) {
-      return "Scrub: " + Format.formatPercent(primaryPool.scrub.progress_percent)
+      return "Scrub " + Format.formatPercent(primaryPool.scrub.progress_percent)
     }
     if (primaryPool.balance && primaryPool.balance.active) {
-      return "Bal: " + Format.formatPercent(primaryPool.balance.progress_percent)
+      return "Bal " + Format.formatPercent(primaryPool.balance.progress_percent)
     }
     if (primaryPool.percent_used !== undefined) {
       return Format.formatPercent(primaryPool.percent_used)
@@ -49,12 +60,66 @@ Ui.BarWidget {
     return summary
   }
 
+  // Color tokens bound directly to host bar properties and theme
+  readonly property color textColor: {
+    if (isDegraded) return bar ? bar.urgent : Color.urgent
+    if (isWorking) return bar ? (bar.accent || Color.accent) : Color.accent
+    return bar ? bar.foreground : Color.foreground
+  }
+
+  // Popout coordination with Bar host
+  readonly property bool opened: (bar && bar.activePopout === root) || (flyoutLoader.item ? flyoutLoader.item.opened === true : false)
+  readonly property bool popoutSwitchClosing: flyoutLoader.item ? flyoutLoader.item.popoutSwitchClosing === true : false
+
+  function open() {
+    if (bar) {
+      bar.hideTooltip(root)
+      bar.requestPopout(root)
+    }
+    if (flyoutLoader.item && flyoutLoader.item.open) {
+      flyoutLoader.item.open()
+    }
+  }
+
+  function close() {
+    if (bar && bar.activePopout === root) {
+      bar.releasePopout(root)
+    }
+    if (flyoutLoader.item && flyoutLoader.item.close) {
+      flyoutLoader.item.close()
+    }
+  }
+
+  function closeForPopoutSwitch() {
+    if (flyoutLoader.item && flyoutLoader.item.closeForPopoutSwitch) {
+      flyoutLoader.item.closeForPopoutSwitch()
+    } else if (flyoutLoader.item && flyoutLoader.item.close) {
+      flyoutLoader.item.close()
+    }
+  }
+
+  function toggle() {
+    if (opened) close()
+    else open()
+  }
+
+  Connections {
+    target: root.bar || null
+    function onActivePopoutChanged() {
+      if (root.bar && root.bar.activePopout !== root && root.opened) {
+        if (flyoutLoader.item && flyoutLoader.item.close) {
+          flyoutLoader.item.close()
+        }
+      }
+    }
+  }
+
   function injectFlyout() {
     var target = flyoutLoader.item
     if (!target) return
     if ("bar" in target) target.bar = root.bar
     if ("settings" in target) target.settings = root.settings
-    if ("anchorItem" in target) target.anchorItem = btn
+    if ("anchorItem" in target) target.anchorItem = root
     if ("hostWidget" in target) target.hostWidget = root
     if ("pool" in target) target.pool = root.primaryPool || ({})
   }
@@ -66,20 +131,7 @@ Ui.BarWidget {
   }
 
   onBarChanged: injectFlyout()
-
-  function toggleFlyout() {
-    if (flyoutLoader.item && flyoutLoader.item.toggle) {
-      flyoutLoader.item.toggle()
-    }
-  }
-
-  // Contract for shell popup panel routing
-  readonly property bool opened: flyoutLoader.item ? flyoutLoader.item.opened === true : false
-  function open() { if (flyoutLoader.item && flyoutLoader.item.open) flyoutLoader.item.open() }
-  function close() { if (flyoutLoader.item && flyoutLoader.item.close) flyoutLoader.item.close() }
-
-  implicitWidth: btn.implicitWidth
-  implicitHeight: btn.implicitHeight
+  onSettingsChanged: injectFlyout()
 
   // 1. Resident NDJSON Stream Process
   Process {
@@ -151,51 +203,84 @@ Ui.BarWidget {
     }
   }
 
-  // 4. Bar Button Visual
-  Ui.WidgetButton {
-    id: btn
+  // 4. Background pill for hover and popout active states
+  Rectangle {
+    id: bg
     anchors.fill: parent
-    bar: root.bar
-    text: root.vertical ? "" : root.badgeText
-    labelVisible: !root.vertical && root.badgeText !== ""
-    hasVisualContent: true
-    tooltipText: root.tooltipSummary
-    active: root.isWorking || root.isDegraded
-
-    onPressed: function(mouse) {
-      root.toggleFlyout()
-    }
-
-    // Working animated pulse
-    SequentialAnimation on opacity {
-      running: root.isWorking
-      loops: Animation.Infinite
-      alwaysRunToEnd: false
-      NumberAnimation { to: 0.6; duration: 800; easing.type: Easing.InOutQuad }
-      NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
-    }
-
-    Row {
-      anchors.centerIn: parent
-      spacing: Style.space(6)
-      visible: !root.vertical
-
-      Image {
-        width: Style.bar.iconSlot
-        height: Style.bar.iconSlot
-        source: root.statusIcon
-        sourceSize.width: Style.bar.iconSlot
-        sourceSize.height: Style.bar.iconSlot
-        anchors.verticalCenter: parent.verticalCenter
+    anchors.margins: Style.space(2)
+    radius: Style.radius(4)
+    color: {
+      if (root.opened) {
+        return root.bar ? Style.selectedFillFor(root.bar.foreground, Color.accent) : Qt.rgba(1, 1, 1, 0.12)
       }
+      if (mouseArea.containsMouse) {
+        return root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : Qt.rgba(1, 1, 1, 0.06)
+      }
+      return "transparent"
+    }
+    Behavior on color { ColorAnimation { duration: 150 } }
+  }
 
-      Text {
-        text: root.badgeText
-        font.family: btn.fontFamily
-        font.pixelSize: btn.fontSize
-        color: root.isDegraded ? Color.urgent : (btn.active ? btn.activeColor : btn.foreground)
-        anchors.verticalCenter: parent.verticalCenter
-        visible: text !== ""
+  // 5. Internal Layout (proportional icons, compact spacing, native typography)
+  RowLayout {
+    id: contentLayout
+    anchors.centerIn: parent
+    spacing: 4
+
+    Image {
+      id: iconImg
+      Layout.alignment: Qt.AlignVCenter
+      Layout.preferredWidth: root.iconSize
+      Layout.preferredHeight: root.iconSize
+      source: root.statusIcon
+      sourceSize: Qt.size(root.iconSize, root.iconSize)
+      fillMode: Image.PreserveAspectFit
+
+      // Working animated pulse
+      SequentialAnimation on opacity {
+        running: root.isWorking
+        loops: Animation.Infinite
+        alwaysRunToEnd: false
+        NumberAnimation { to: 0.5; duration: 800; easing.type: Easing.InOutQuad }
+        NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
+      }
+    }
+
+    Text {
+      id: labelText
+      Layout.alignment: Qt.AlignVCenter
+      visible: !root.vertical && root.badgeText !== ""
+      text: root.badgeText
+      color: root.textColor
+      font.family: root.bar ? root.bar.fontFamily : Style.font.family
+      font.pixelSize: 11
+      renderType: Text.NativeRendering
+      verticalAlignment: Text.AlignVCenter
+    }
+  }
+
+  // 6. Interaction Area
+  MouseArea {
+    id: mouseArea
+    anchors.fill: parent
+    hoverEnabled: true
+    acceptedButtons: Qt.LeftButton | Qt.RightButton
+
+    onEntered: {
+      if (root.bar && root.tooltipSummary !== "" && !root.opened) {
+        root.bar.showTooltip(root, root.tooltipSummary)
+      }
+    }
+
+    onExited: {
+      if (root.bar) {
+        root.bar.hideTooltip(root)
+      }
+    }
+
+    onClicked: function(mouse) {
+      if (mouse.button === Qt.LeftButton) {
+        root.toggle()
       }
     }
   }

@@ -45,6 +45,7 @@ ColumnLayout {
           font.family: Style.font.family
           font.pixelSize: Style.font.title
           font.bold: true
+          renderType: Text.NativeRendering
           color: Color.foreground
         }
 
@@ -64,6 +65,7 @@ ColumnLayout {
             font.family: Style.font.family
             font.pixelSize: Style.font.caption * 0.85
             font.bold: true
+            renderType: Text.NativeRendering
             color: Color.accent
           }
         }
@@ -73,6 +75,7 @@ ColumnLayout {
         text: (pool.is_mounted ? pool.mountpoint : "Not mounted") + " · " + (pool.uuid ? pool.uuid.substring(0, 8) + "…" : "")
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
+        renderType: Text.NativeRendering
         color: Qt.darker(Color.foreground, 1.4)
         elide: Text.ElideMiddle
         Layout.fillWidth: true
@@ -101,6 +104,7 @@ ColumnLayout {
         text: "Capacity"
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
+        renderType: Text.NativeRendering
         color: Qt.darker(Color.foreground, 1.3)
       }
 
@@ -110,6 +114,7 @@ ColumnLayout {
         text: Format.formatBytes(pool.used_bytes) + " used of " + Format.formatBytes(pool.total_bytes) + " (" + Format.formatPercent(pool.percent_used) + ")"
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
+        renderType: Text.NativeRendering
         color: Color.foreground
       }
     }
@@ -140,6 +145,7 @@ ColumnLayout {
         text: "Free (estimated): " + Format.formatBytes(pool.free_bytes)
         font.family: Style.font.family
         font.pixelSize: Style.font.caption * 0.9
+        renderType: Text.NativeRendering
         color: Qt.darker(Color.foreground, 1.4)
       }
     }

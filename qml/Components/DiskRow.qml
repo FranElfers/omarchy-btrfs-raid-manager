@@ -51,6 +51,7 @@ Rectangle {
           font.family: Style.font.family
           font.pixelSize: Style.font.body
           font.bold: true
+          renderType: Text.NativeRendering
           color: device.missing ? Color.urgent : Color.foreground
         }
 
@@ -58,6 +59,7 @@ Rectangle {
           text: device.size_bytes > 0 ? Format.formatBytes(device.size_bytes) : ""
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
+          renderType: Text.NativeRendering
           color: Qt.darker(Color.foreground, 1.4)
           visible: text !== ""
         }
@@ -67,6 +69,7 @@ Rectangle {
         text: device.model ? (device.model + (device.serial ? " (" + device.serial + ")" : "")) : "Device #" + (device.dev_id || "")
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
+        renderType: Text.NativeRendering
         color: Qt.darker(Color.foreground, 1.3)
         elide: Text.ElideRight
         Layout.fillWidth: true
@@ -77,6 +80,7 @@ Rectangle {
         text: "Errors: Write " + (device.write_errs || 0) + " · Read " + (device.read_errs || 0) + " · Corruption " + (device.corruption_errs || 0)
         font.family: Style.font.family
         font.pixelSize: Style.font.caption * 0.9
+        renderType: Text.NativeRendering
         color: (device.write_errs > 0 || device.read_errs > 0 || device.corruption_errs > 0)
           ? Color.urgent
           : Qt.darker(Color.foreground, 1.6)
@@ -112,11 +116,12 @@ Rectangle {
         font.family: Style.font.family
         font.pixelSize: Style.font.caption * 0.9
         font.bold: true
+        renderType: Text.NativeRendering
         color: {
           if (device.missing) return Color.urgent
           if (device.smart_status === "failing") return Color.urgent
           if (device.smart_status === "warning") return Color.warning
-          if (device.smart_status === "passed") return "#22c55e"
+          if (device.smart_status === "passed") return Color.accent
           return Qt.darker(Color.foreground, 1.4)
         }
         text: {

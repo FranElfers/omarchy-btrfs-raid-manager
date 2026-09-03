@@ -34,6 +34,18 @@ Ui.Panel {
     root.controller.hide()
   }
 
+  readonly property bool popoutSwitchClosing: panel ? panel.popoutSwitchClosing === true : false
+
+  function closeForPopoutSwitch() {
+    addDiskOpen = false
+    newDevicePath = ""
+    if (panel && panel.closeForPopoutSwitch) {
+      panel.closeForPopoutSwitch()
+    } else {
+      root.controller.hide()
+    }
+  }
+
   function toggle() {
     if (root.opened) root.close()
     else root.open()
@@ -110,6 +122,7 @@ Ui.Panel {
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             font.bold: true
+            renderType: Text.NativeRendering
             color: Color.foreground
           }
 
@@ -225,6 +238,7 @@ Ui.Panel {
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             font.bold: true
+            renderType: Text.NativeRendering
             color: Color.accent
           }
 
@@ -234,6 +248,7 @@ Ui.Panel {
             text: (root.pool.scrub && root.pool.scrub.active) ? ("Errors: " + (root.pool.scrub.errors || 0)) : ""
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
+            renderType: Text.NativeRendering
             color: (root.pool.scrub && root.pool.scrub.errors > 0) ? Color.urgent : Color.foreground
           }
         }
@@ -272,6 +287,7 @@ Ui.Panel {
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
             font.bold: true
+            renderType: Text.NativeRendering
             color: Color.foreground
           }
 
@@ -279,6 +295,7 @@ Ui.Panel {
             text: "Monthly scrub and weekly balance systemd timers"
             font.family: Style.font.family
             font.pixelSize: Style.font.caption * 0.85
+            renderType: Text.NativeRendering
             color: Qt.darker(Color.foreground, 1.4)
           }
         }

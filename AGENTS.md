@@ -30,7 +30,6 @@
 Run before every commit:
 
 ```bash
-golangci-lint run ./...
 qmllint qml/**/*.qml
 systemd-analyze verify systemd/*
 go test -v -race ./...

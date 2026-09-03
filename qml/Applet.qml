@@ -20,7 +20,7 @@ Item {
   readonly property int iconSize: bar ? Math.max(14, Math.round(bar.barSize * 0.6)) : 16
 
   implicitHeight: bar ? bar.barSize : 26
-  implicitWidth: bar && bar.vertical ? (bar.barSize || 28) : Math.ceil(contentRow.implicitWidth + (padding * 2))
+  implicitWidth: bar && bar.vertical ? (bar.barSize || 28) : Math.max(iconSize + padding * 2, Math.ceil(contentRow.implicitWidth + (padding * 2)))
 
   // Parsed state from resident daemon
   property var pools: []
@@ -299,6 +299,7 @@ Item {
           root.selectedPoolUuid = uuid
         })
       }
+    }
   }
 
   // 4. Background pill for hover and popout active states
@@ -336,6 +337,8 @@ Item {
     MultiEffect {
       width: root.iconSize
       height: root.iconSize
+      implicitWidth: root.iconSize
+      implicitHeight: root.iconSize
       anchors.verticalCenter: parent.verticalCenter
       source: iconImg
       colorization: 1.0

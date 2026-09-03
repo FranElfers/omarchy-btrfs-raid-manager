@@ -144,13 +144,18 @@ else
   echo "installed $target_dir"
 fi
 
+if command -v omarchy-shell >/dev/null 2>&1 && omarchy-shell shell ping >/dev/null 2>&1; then
+  omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
+  echo "shell plugins rescanned"
+fi
+
 if [[ $enable_now == yes ]]; then
   if command -v omarchy-plugin-enable >/dev/null 2>&1; then
-    omarchy-plugin-enable "$id" --section right >/dev/null 2>&1 || true
+    omarchy-plugin-enable "$id" --section right || true
     echo "enabled $id and placed in bar"
   elif command -v omarchy >/dev/null 2>&1; then
-    omarchy plugin enable "$id" >/dev/null 2>&1 || true
-    omarchy bar move "$id" --section right >/dev/null 2>&1 || true
+    omarchy plugin enable "$id" || true
+    omarchy bar move "$id" --section right || true
     echo "enabled $id and placed in bar"
   fi
 fi

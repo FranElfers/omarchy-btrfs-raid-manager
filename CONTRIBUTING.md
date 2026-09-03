@@ -18,7 +18,7 @@ All contributors are expected to follow our [Code of Conduct](CODE_OF_CONDUCT.md
 
 ### Prerequisites
 
-- Go (1.22+)
+- Go (1.27+)
 - Omarchy Desktop Environment with Quickshell
 - `btrfs-progs` (v6.0+)
 - `udisks2` and `systemd`
@@ -26,21 +26,25 @@ All contributors are expected to follow our [Code of Conduct](CODE_OF_CONDUCT.md
 ### Building the Project
 
 Compile the Go daemon:
+
 ```bash
 go build -o bin/raid-manager ./cmd/raid-manager
 ```
 
 Run tests:
+
 ```bash
 go test -v ./...
 ```
 
 Validate the plugin manifest:
+
 ```bash
 omarchy plugin validate .
 ```
 
 Verify systemd units:
+
 ```bash
 systemd-analyze verify systemd/btrpool-scrub@.service systemd/btrpool-balance@.service
 ```

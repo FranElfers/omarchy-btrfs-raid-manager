@@ -91,7 +91,7 @@ Ui.Panel {
               property var pData: modelData || ({})
               text: (pData.label || ("btrfs-" + (pData.uuid ? pData.uuid.substring(0, 8) : ""))) + " (" + (pData.raid_profile || "SINGLE") + ")"
               tooltipText: "Select pool: " + (pData.label || pData.uuid) + (pData.mountpoint ? " [" + pData.mountpoint + "]" : "")
-              isActive: (root.pool && root.pool.uuid === pData.uuid) || (root.selectedPoolUuid === pData.uuid)
+              active: (root.pool && root.pool.uuid === pData.uuid) || (root.selectedPoolUuid === pData.uuid)
               onClicked: {
                 if (pData.uuid) {
                   root.poolSelected(pData.uuid)
@@ -296,7 +296,7 @@ Ui.Panel {
 
           Rectangle {
             Layout.fillWidth: true
-            height: Style.space(6)
+            Layout.preferredHeight: Style.space(6)
             radius: ThemeStyle.radiusFor("gauge", Style.cornerRadius)
             color: ThemeStyle.colorWithAlpha(Color.foreground, 0.1)
 

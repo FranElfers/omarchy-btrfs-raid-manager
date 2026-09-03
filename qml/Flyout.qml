@@ -13,6 +13,8 @@ Ui.Panel {
   manageIpc: false
 
   property var pool: ({})
+  property var pools: []
+  property string selectedPoolUuid: ""
   property var anchorItem: null
   property var hostWidget: null
   readonly property var barIdentity: hostWidget || root
@@ -21,6 +23,7 @@ Ui.Panel {
   property string newDevicePath: ""
 
   signal runAdmin(var args)
+  signal poolSelected(string uuid)
 
   function open() {
     root.controller.show();
@@ -74,6 +77,29 @@ Ui.Panel {
         id: contentColumn
         width: scrollFlickable.width
         spacing: Style.space(12)
+
+        // Section 0: Multi-pool selector tabs (visible when more than one pool exists)
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.pools && root.pools.length > 1
+          spacing: Style.space(6)
+
+          Repeater {
+            model: root.pools || []
+            delegate: ActionButton {
+              id: poolTabBtn
+              property var pData: modelData || ({})
+              text: (pData.label || ("btrfs-" + (pData.uuid ? pData.uuid.substring(0, 8) : ""))) + " (" + (pData.raid_profile || "SINGLE") + ")"
+              tooltipText: "Select pool: " + (pData.label || pData.uuid) + (pData.mountpoint ? " [" + pData.mountpoint + "]" : "")
+              isActive: (root.pool && root.pool.uuid === pData.uuid) || (root.selectedPoolUuid === pData.uuid)
+              onClicked: {
+                if (pData.uuid) {
+                  root.poolSelected(pData.uuid)
+                }
+              }
+            }
+          }
+        }
 
         // Section 1: Header
         PoolHeader {

@@ -164,6 +164,17 @@ ColumnLayout {
         renderType: Text.NativeRendering
         color: ThemeStyle.textSecondary(Color)
       }
+
+      Item { Layout.fillWidth: true }
+
+      Text {
+        visible: pool && pool.raw_used_bytes > 0 && pool.raw_total_bytes > 0
+        text: "Raw disk: " + Format.formatBytes(pool.raw_used_bytes) + " / " + Format.formatBytes(pool.raw_total_bytes)
+        font.family: Style.font.family
+        font.pixelSize: ThemeStyle.fontSize("captionSmall")
+        renderType: Text.NativeRendering
+        color: ThemeStyle.textMuted(Color)
+      }
     }
   }
 }

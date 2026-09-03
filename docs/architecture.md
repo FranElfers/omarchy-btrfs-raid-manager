@@ -47,7 +47,7 @@ Traditional applets run commands like `btrfs fi usage` or `df` on a timer. This 
 `omarchy-btrfs-raid-manager` uses an event-driven model instead:
 
 1. **Direct Kernel Sysfs Reads:**
-   The daemon reads storage usage, chunk profiles (`raid1`, `single`), and error counters (`write_errs`, `read_errs`, `corruption_errs`) directly from `/sys/fs/btrfs/<uuid>/`. It spawns no child processes for telemetry.
+   The daemon reads storage allocation, chunk profiles (`raid1`, `single`), error counters (`write_errs`, `read_errs`), and device sector sizes directly from `/sys/fs/btrfs/<uuid>/`. It spawns no child processes for telemetry.
 2. **D-Bus Signal Subscriptions:**
    The `raid-manager stream` daemon listens to two D-Bus sources:
    - `org.freedesktop.UDisks2`: `PropertiesChanged` and `ObjectManager` signals report disk changes, mounts, unmounts, and SMART status.
@@ -96,10 +96,12 @@ Quickshell runs `raid-manager stream` with `Quickshell.Io.Process` and parses ou
       "label": "data_pool",
       "mountpoint": "/mnt/datos",
       "is_mounted": true,
-      "total_bytes": 49392123904,
-      "used_bytes": 22971301888,
-      "free_bytes": 26420822016,
-      "percent_used": 46.5,
+      "total_bytes": 439028236288,
+      "used_bytes": 23007428608,
+      "free_bytes": 416020807680,
+      "raw_total_bytes": 880198811648,
+      "raw_used_bytes": 46014889984,
+      "percent_used": 5.24,
       "raid_profile": "RAID1",
       "meta_profile": "RAID1",
       "status": "healthy",
@@ -111,11 +113,25 @@ Quickshell runs `raid-manager stream` with `Quickshell.Io.Process` and parses ou
           "dev_node": "/dev/sda1",
           "dev_id": 1,
           "missing": false,
-          "model": "Crucial CT1000MX500SSD1",
-          "serial": "2145E5E994B6",
-          "size_bytes": 1000204886016,
+          "model": "WDC WD3200BPVT",
+          "serial": "WD-WX11E33J3770",
+          "size_bytes": 320072933376,
           "smart_status": "passed",
-          "smart_temperature_c": 28.0,
+          "smart_temperature_c": 24.0,
+          "smart_bad_sectors": 0,
+          "write_errs": 0,
+          "read_errs": 0,
+          "corruption_errs": 0
+        },
+        {
+          "dev_node": "/dev/sdb1",
+          "dev_id": 2,
+          "missing": false,
+          "model": "WDC WD3200BPVT",
+          "serial": "WD-WXQ1CB1H4655",
+          "size_bytes": 320072933376,
+          "smart_status": "passed",
+          "smart_temperature_c": 24.0,
           "smart_bad_sectors": 0,
           "write_errs": 0,
           "read_errs": 0,
@@ -141,11 +157,29 @@ Quickshell runs `raid-manager stream` with `Quickshell.Io.Process` and parses ou
       }
     }
   ],
-  "timestamp": 1788391700
+  "timestamp": 1788453000
 }
 ```
 
-The top-bar widget binds dynamically to `Omarchy.Theme` tokens and updates immediately when disk or maintenance state changes.
+### 5.1 Storage Calculation Rules
+
+Btrfs RAID profiles use data redundancy multipliers (for example, 2.0 for RAID1, RAID10, and DUP). The backend calculates storage to match `btrfs filesystem usage`:
+
+- **Estimated Free Space (`free_bytes`):** Unallocated raw disk bytes divided by the profile multiplier, plus free space inside allocated data chunks.
+- **Usable Used Space (`used_bytes`):** Logical data and metadata bytes occupied by user files (matching `df -h`).
+- **Total Usable Capacity (`total_bytes`):** Sum of used bytes and estimated free bytes.
+- **Raw Disk Metrics (`raw_used_bytes`, `raw_total_bytes`):** Physical disk bytes occupied across all disks and total physical drive capacity.
+
+### 5.2 Pool Priority and Selection
+
+The backend and UI sort pools in this order:
+
+1. **Degraded pools:** Urgent alert priority.
+2. **Active maintenance:** Pools running scrub or balance.
+3. **RAID / Multi-device pools:** Prioritized over single-disk system partitions.
+4. **Single-device pools:** Available as secondary pools.
+
+When multiple pools exist, `Flyout.qml` displays selection tabs so users can switch between pools.
 
 ---
 

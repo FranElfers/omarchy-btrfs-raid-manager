@@ -24,18 +24,47 @@ Item {
 
   // Parsed state from resident daemon
   property var pools: []
+  property string selectedPoolUuid: ""
   readonly property var primaryPool: {
     if (!pools || pools.length === 0) return null
+
+    // 0. User selection if present and still valid
+    if (selectedPoolUuid) {
+      for (var s = 0; s < pools.length; s++) {
+        if (pools[s] && pools[s].uuid === selectedPoolUuid) {
+          return pools[s]
+        }
+      }
+    }
+
+    // 1. Degraded pools take highest priority for user alert
     for (var i = 0; i < pools.length; i++) {
       if (pools[i] && (pools[i].is_degraded || pools[i].status === "degraded")) {
         return pools[i]
       }
     }
+
+    // 2. Active maintenance (scrub or balance)
     for (var j = 0; j < pools.length; j++) {
       if (pools[j] && (pools[j].status === "working" || (pools[j].scrub && pools[j].scrub.active) || (pools[j].balance && pools[j].balance.active))) {
         return pools[j]
       }
     }
+
+    // 3. Multi-device or RAID pools (prioritize over single-disk OS volumes)
+    for (var k = 0; k < pools.length; k++) {
+      var p = pools[k]
+      if (p) {
+        var prof = (p.raid_profile || "").toUpperCase()
+        var isRaid = prof && prof !== "SINGLE" && prof !== "DUP"
+        var isMulti = p.devices && p.devices.length > 1
+        if (isRaid || isMulti) {
+          return p
+        }
+      }
+    }
+
+    // 4. Fallback to first discovered pool
     return pools[0]
   }
 
@@ -173,12 +202,25 @@ Item {
     if ("settings" in target) target.settings = root.settings
     if ("anchorItem" in target) target.anchorItem = root
     if ("hostWidget" in target) target.hostWidget = root
+    if ("pools" in target) target.pools = root.pools
+    if ("selectedPoolUuid" in target) target.selectedPoolUuid = root.primaryPool ? root.primaryPool.uuid : ""
     if ("pool" in target) target.pool = root.primaryPool || ({})
   }
 
   onPrimaryPoolChanged: {
-    if (flyoutLoader.item && "pool" in flyoutLoader.item) {
-      flyoutLoader.item.pool = root.primaryPool || ({})
+    if (flyoutLoader.item) {
+      if ("pool" in flyoutLoader.item) {
+        flyoutLoader.item.pool = root.primaryPool || ({})
+      }
+      if ("selectedPoolUuid" in flyoutLoader.item && root.primaryPool) {
+        flyoutLoader.item.selectedPoolUuid = root.primaryPool.uuid
+      }
+    }
+  }
+
+  onPoolsChanged: {
+    if (flyoutLoader.item && "pools" in flyoutLoader.item) {
+      flyoutLoader.item.pools = root.pools
     }
   }
 
@@ -252,7 +294,11 @@ Item {
       flyoutLoader.item.runAdmin.connect(function(args) {
         adminProcess.execute(args, null)
       })
-    }
+      if (flyoutLoader.item.poolSelected) {
+        flyoutLoader.item.poolSelected.connect(function(uuid) {
+          root.selectedPoolUuid = uuid
+        })
+      }
   }
 
   // 4. Background pill for hover and popout active states

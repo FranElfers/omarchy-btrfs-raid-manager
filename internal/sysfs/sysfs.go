@@ -39,12 +39,14 @@ type AllocationStats struct {
 
 // PoolSysfsData holds raw parsed sysfs information for a specific Btrfs pool UUID.
 type PoolSysfsData struct {
-	UUID       string           `json:"uuid"`
-	Label      string           `json:"label"`
-	DataAlloc  AllocationStats  `json:"data_alloc"`
-	MetaAlloc  AllocationStats  `json:"meta_alloc"`
-	Devices    []string         `json:"devices"`
-	DevInfos   map[int]DevInfo  `json:"dev_infos"`
+	UUID        string            `json:"uuid"`
+	Label       string            `json:"label"`
+	DataAlloc   AllocationStats   `json:"data_alloc"`
+	MetaAlloc   AllocationStats   `json:"meta_alloc"`
+	SystemAlloc AllocationStats   `json:"system_alloc"`
+	Devices     []string          `json:"devices"`
+	DeviceSizes map[string]uint64 `json:"device_sizes,omitempty"`
+	DevInfos    map[int]DevInfo   `json:"dev_infos"`
 }
 
 // Reader provides methods to inspect the btrfs sysfs hierarchy.
@@ -77,17 +79,20 @@ func (r *Reader) ReadPool(uuid string) (*PoolSysfsData, error) {
 
 	dataAlloc := r.readAllocation(filepath.Join(poolDir, "allocation", "data"))
 	metaAlloc := r.readAllocation(filepath.Join(poolDir, "allocation", "metadata"))
+	sysAlloc := r.readAllocation(filepath.Join(poolDir, "allocation", "system"))
 
-	devices := r.readDevices(filepath.Join(poolDir, "devices"))
+	devices, deviceSizes := r.readDevices(filepath.Join(poolDir, "devices"))
 	devInfos := r.readDevInfos(filepath.Join(poolDir, "devinfo"))
 
 	return &PoolSysfsData{
-		UUID:      uuid,
-		Label:     label,
-		DataAlloc: dataAlloc,
-		MetaAlloc: metaAlloc,
-		Devices:   devices,
-		DevInfos:  devInfos,
+		UUID:        uuid,
+		Label:       label,
+		DataAlloc:   dataAlloc,
+		MetaAlloc:   metaAlloc,
+		SystemAlloc: sysAlloc,
+		Devices:     devices,
+		DeviceSizes: deviceSizes,
+		DevInfos:    devInfos,
 	}, nil
 }
 
@@ -139,16 +144,22 @@ func (r *Reader) readAllocation(allocDir string) AllocationStats {
 	return stats
 }
 
-func (r *Reader) readDevices(devicesDir string) []string {
+func (r *Reader) readDevices(devicesDir string) ([]string, map[string]uint64) {
 	entries, err := os.ReadDir(devicesDir)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 	var devs []string
+	sizes := make(map[string]uint64)
 	for _, entry := range entries {
-		devs = append(devs, entry.Name())
+		name := entry.Name()
+		devs = append(devs, name)
+		sectors := readUint64File(filepath.Join(devicesDir, name, "size"))
+		if sectors > 0 {
+			sizes[name] = sectors * 512
+		}
 	}
-	return devs
+	return devs, sizes
 }
 
 func (r *Reader) readDevInfos(devinfoDir string) map[int]DevInfo {

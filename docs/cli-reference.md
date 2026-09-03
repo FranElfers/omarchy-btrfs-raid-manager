@@ -29,11 +29,12 @@ Runs the resident event monitor. Quickshell executes this process via `Quickshel
 - **Output:** Emits one JSON object per line (NDJSON) to standard output.
 - **Debounce:** Debounces D-Bus signal bursts across a 200 ms window.
 - **Progress Ticking:** Emits progress updates every 2 seconds during active scrub or balance operations.
+- **Pool Sorting:** Sorts pools by priority: degraded pools first, then working pools, then RAID/multi-device pools, then single-disk pools.
+- **Capacity Metrics:** Includes usable logical capacity (`total_bytes`, `used_bytes`, `free_bytes`) and physical raw disk space (`raw_total_bytes`, `raw_used_bytes`).
 
 ### Output Example
 
 See [Architecture: NDJSON Protocol](architecture.md#5-ui-integration-and-ndjson-protocol) for the full payload schema.
-
 ---
 
 ## 3. Admin Mode (`raid-manager admin`)

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/franelfers/omarchy-btrfs-raid-manager/internal/btrfs"
@@ -58,6 +60,8 @@ type PoolInfo struct {
 	TotalBytes        uint64       `json:"total_bytes"`
 	UsedBytes         uint64       `json:"used_bytes"`
 	FreeBytes         uint64       `json:"free_bytes"`
+	RawTotalBytes     uint64       `json:"raw_total_bytes,omitempty"`
+	RawUsedBytes      uint64       `json:"raw_used_bytes,omitempty"`
 	PercentUsed       float64      `json:"percent_used"`
 	RaidProfile       string       `json:"raid_profile"`
 	MetaProfile       string       `json:"meta_profile"`
@@ -117,11 +121,45 @@ func AggregatePool(
 	}
 
 	// Calculate storage usage
-	info.TotalBytes = sysData.DataAlloc.TotalBytes
-	info.UsedBytes = sysData.DataAlloc.BytesUsed
-	if info.TotalBytes > info.UsedBytes {
-		info.FreeBytes = info.TotalBytes - info.UsedBytes
+	rawAllocated := sysData.DataAlloc.DiskTotal + sysData.MetaAlloc.DiskTotal + sysData.SystemAlloc.DiskTotal
+	rawUsed := sysData.DataAlloc.DiskUsed + sysData.MetaAlloc.DiskUsed + sysData.SystemAlloc.DiskUsed
+
+	var rawDiskTotal uint64
+	for _, devName := range sysData.Devices {
+		if size, ok := sysData.DeviceSizes[devName]; ok && size > 0 {
+			rawDiskTotal += size
+		}
 	}
+
+	ratio := profileDataRatio(sysData.DataAlloc.Profile)
+	if ratio < 1.0 {
+		ratio = 1.0
+	}
+
+	info.UsedBytes = sysData.DataAlloc.BytesUsed + sysData.MetaAlloc.BytesUsed
+	info.RawTotalBytes = rawDiskTotal
+	info.RawUsedBytes = rawUsed
+
+	if rawDiskTotal > rawAllocated {
+		rawUnallocated := rawDiskTotal - rawAllocated
+		unallocatedUsable := uint64(float64(rawUnallocated) / ratio)
+
+		var allocatedDataFree uint64
+		if sysData.DataAlloc.TotalBytes > sysData.DataAlloc.BytesUsed {
+			allocatedDataFree = sysData.DataAlloc.TotalBytes - sysData.DataAlloc.BytesUsed
+		}
+
+		info.FreeBytes = unallocatedUsable + allocatedDataFree
+		info.TotalBytes = info.UsedBytes + info.FreeBytes
+	} else if sysData.DataAlloc.TotalBytes > 0 {
+		// Fallback for mocks/tests or when raw device sizes are not exposed
+		info.TotalBytes = sysData.DataAlloc.TotalBytes
+		info.UsedBytes = sysData.DataAlloc.BytesUsed
+		if info.TotalBytes > info.UsedBytes {
+			info.FreeBytes = info.TotalBytes - info.UsedBytes
+		}
+	}
+
 	if info.TotalBytes > 0 {
 		info.PercentUsed = (float64(info.UsedBytes) / float64(info.TotalBytes)) * 100.0
 	}
@@ -129,16 +167,24 @@ func AggregatePool(
 	// Match devices
 	var hasMissing bool
 	var hasFailing bool
+	usedDevs := make(map[string]bool)
 
-	// Build map of devices by node/name
-	for devID, dInfo := range sysData.DevInfos {
+	// Sort devIDs for deterministic ordering
+	devIDs := make([]int, 0, len(sysData.DevInfos))
+	for devID := range sysData.DevInfos {
+		devIDs = append(devIDs, devID)
+	}
+	sort.Ints(devIDs)
+
+	for _, devID := range devIDs {
+		dInfo := sysData.DevInfos[devID]
 		pDev := PoolDevice{
 			DevID:          devID,
 			Missing:        dInfo.Missing,
 			WriteErrs:      dInfo.ErrorStats.WriteErrs,
 			ReadErrs:       dInfo.ErrorStats.ReadErrs,
 			CorruptionErrs: dInfo.ErrorStats.CorruptionErrs,
-			SmartStatus:    "unknown",
+			SmartStatus:    "disabled",
 		}
 
 		if dInfo.Missing {
@@ -146,8 +192,12 @@ func AggregatePool(
 			pDev.Model = "Missing Device"
 			hasMissing = true
 		} else {
-			// Find matching block device name from sysData.Devices
+			// Find an unassigned block device name from sysData.Devices
 			for _, devName := range sysData.Devices {
+				if usedDevs[devName] {
+					continue
+				}
+				usedDevs[devName] = true
 				if uInfo, ok := devices[devName]; ok {
 					pDev.DevNode = uInfo.DevNode
 					pDev.Model = uInfo.Model
@@ -164,17 +214,53 @@ func AggregatePool(
 					if uInfo.SmartFailing {
 						hasFailing = true
 					}
-					break
+				} else {
+					pDev.DevNode = "/dev/" + devName
+					if size, hasSize := sysData.DeviceSizes[devName]; hasSize {
+						pDev.SizeBytes = size
+					}
 				}
+				break
 			}
 			if pDev.DevNode == "" && len(sysData.Devices) > 0 {
 				pDev.DevNode = "/dev/" + sysData.Devices[0]
 			}
-			if pDev.SmartStatus == "" || pDev.SmartStatus == "unknown" {
-				pDev.SmartStatus = "disabled"
-			}
 		}
 
+		info.Devices = append(info.Devices, pDev)
+	}
+
+	// Add any unassigned devices from sysData.Devices (e.g. if DevInfos was partial)
+	for _, devName := range sysData.Devices {
+		if usedDevs[devName] {
+			continue
+		}
+		usedDevs[devName] = true
+		pDev := PoolDevice{
+			DevID:       len(info.Devices) + 1,
+			SmartStatus: "disabled",
+		}
+		if uInfo, ok := devices[devName]; ok {
+			pDev.DevNode = uInfo.DevNode
+			pDev.Model = uInfo.Model
+			pDev.Serial = uInfo.Serial
+			pDev.SizeBytes = uInfo.SizeBytes
+			pDev.SmartStatus = uInfo.SmartStatus
+			pDev.SmartTemperatureC = uInfo.SmartTemperatureC
+			pDev.SmartBadSectors = uInfo.SmartBadSectors
+			if len(uInfo.MountPoints) > 0 && info.Mountpoint == "" {
+				info.Mountpoint = uInfo.MountPoints[0]
+				info.IsMounted = true
+			}
+			if uInfo.SmartFailing {
+				hasFailing = true
+			}
+		} else {
+			pDev.DevNode = "/dev/" + devName
+			if size, hasSize := sysData.DeviceSizes[devName]; hasSize {
+				pDev.SizeBytes = size
+			}
+		}
 		info.Devices = append(info.Devices, pDev)
 	}
 
@@ -188,7 +274,9 @@ func AggregatePool(
 			}
 		}
 	}
-
+	if info.Mountpoint != "" {
+		info.IsMounted = true
+	}
 	// Incorporate Scrub telemetry
 	if scrubStatus != nil {
 		info.Scrub.Active = scrubStatus.Active
@@ -316,6 +404,45 @@ func BuildState(
 		)
 		state.Pools = append(state.Pools, poolInfo)
 	}
+	// Sort pools: degraded first, then working, then RAID/multi-device, then single
+	sort.SliceStable(state.Pools, func(i, j int) bool {
+		pi, pj := state.Pools[i], state.Pools[j]
+		if pi.IsDegraded != pj.IsDegraded {
+			return pi.IsDegraded
+		}
+		iWorking := pi.Status == "working" || pi.Scrub.Active || pi.Balance.Active
+		jWorking := pj.Status == "working" || pj.Scrub.Active || pj.Balance.Active
+		if iWorking != jWorking {
+			return iWorking
+		}
+		iRaid := isRaidProfile(pi.RaidProfile) || len(pi.Devices) > 1
+		jRaid := isRaidProfile(pj.RaidProfile) || len(pj.Devices) > 1
+		if iRaid != jRaid {
+			return iRaid
+		}
+		return pi.UUID < pj.UUID
+	})
 
 	return state, nil
+}
+// profileDataRatio returns the data redundancy multiplier for a given Btrfs profile.
+func profileDataRatio(profile string) float64 {
+	switch strings.ToUpper(profile) {
+	case "RAID1", "RAID10", "DUP":
+		return 2.0
+	case "RAID1C3":
+		return 3.0
+	case "RAID1C4":
+		return 4.0
+	case "SINGLE", "RAID0":
+		return 1.0
+	default:
+		return 1.0
+	}
+}
+
+// isRaidProfile returns true if the profile implies multiple mirrored or parity chunks.
+func isRaidProfile(profile string) bool {
+	p := strings.ToUpper(profile)
+	return p != "" && p != "SINGLE" && p != "DUP"
 }

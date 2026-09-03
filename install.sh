@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Install (or reinstall) the Btrfs RAID Manager plugin into the Omarchy shell.
 #
-#   ./install.sh              copy the plugin into ~/.config/omarchy/plugins
+#   ./install.sh              copy the plugin into ~/.config/omarchy/plugins and reload
 #   ./install.sh --link       symlink it instead, for development
 #   ./install.sh --enable     install and immediately enable in the bar
+#   ./install.sh --reload     rebuild, clear QML cache, and restart shell
+#   ./install.sh --no-restart skip restarting the shell after install/update
 #   ./install.sh --system     install systemd units and polkit policy (needs sudo)
 #   ./install.sh --remove     uninstall, and delete the cache and state it wrote
 #   ./install.sh --keep-data  with --remove, leave cache and state in place
@@ -23,6 +25,7 @@ mode="copy"
 keep_data="no"
 enable_now="no"
 install_system="no"
+restart_shell="yes"
 
 for arg in "$@"; do
   case "$arg" in
@@ -31,8 +34,10 @@ for arg in "$@"; do
   --enable) enable_now="yes" ;;
   --system) install_system="yes" ;;
   --keep-data) keep_data="yes" ;;
+  --reload | --restart) restart_shell="yes" ;;
+  --no-restart) restart_shell="no" ;;
   -h | --help)
-    sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
+    sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
     exit 0
     ;;
   *)
@@ -54,12 +59,30 @@ build_binary() {
   fi
 }
 
-rescan() {
+rescan_and_reload() {
+  # 1. Purge Quickshell QML bytecode cache so updated QML files are freshly compiled
+  local qs_cache="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/qmlcache"
+  if [[ -d "$qs_cache" ]]; then
+    rm -rf "$qs_cache"
+  fi
+
+  # 2. Rescan plugin manifests
   if command -v omarchy-shell >/dev/null 2>&1 && omarchy-shell shell ping >/dev/null 2>&1; then
-    omarchy-shell shell rescanPlugins >/dev/null
-    echo "shell rescanned"
+    omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
+    echo "shell plugins rescanned"
+
+    # 3. Restart the shell to reload in-memory QML components
+    if [[ $restart_shell == yes ]]; then
+      echo "Restarting Omarchy shell to apply QML updates..."
+      if command -v omarchy >/dev/null 2>&1; then
+        omarchy restart shell >/dev/null 2>&1 || true
+      elif command -v omarchy-restart-shell >/dev/null 2>&1; then
+        omarchy-restart-shell >/dev/null 2>&1 || true
+      fi
+      echo "Omarchy shell reloaded. Plugin changes are now live!"
+    fi
   else
-    echo "shell not running — it will pick the plugin up on next start"
+    echo "Omarchy shell not running — it will load the plugin on next start."
   fi
 }
 
@@ -98,7 +121,7 @@ if [[ $mode == remove ]]; then
       fi
     done
   fi
-  rescan
+  rescan_and_reload
   exit 0
 fi
 
@@ -121,14 +144,20 @@ else
   echo "installed $target_dir"
 fi
 
-rescan
-
 if [[ $enable_now == yes ]]; then
   if command -v omarchy-plugin-enable >/dev/null 2>&1; then
-    omarchy-plugin-enable "$id" --section right
+    omarchy-plugin-enable "$id" --section right >/dev/null 2>&1 || true
+    echo "enabled $id and placed in bar"
+  elif command -v omarchy >/dev/null 2>&1; then
+    omarchy plugin enable "$id" >/dev/null 2>&1 || true
+    omarchy bar move "$id" --section right >/dev/null 2>&1 || true
     echo "enabled $id and placed in bar"
   fi
-else
+fi
+
+rescan_and_reload
+
+if [[ $enable_now != yes ]]; then
   cat <<EOF
 
 Next:

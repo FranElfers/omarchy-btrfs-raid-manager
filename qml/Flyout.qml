@@ -1,8 +1,5 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
-import Quickshell
-import Quickshell.Io
 import qs.Commons
 import qs.Ui as Ui
 import "Components"
@@ -26,30 +23,32 @@ Ui.Panel {
   signal runAdmin(var args)
 
   function open() {
-    root.controller.show()
+    root.controller.show();
   }
 
   function close() {
-    addDiskOpen = false
-    newDevicePath = ""
-    root.controller.hide()
+    addDiskOpen = false;
+    newDevicePath = "";
+    root.controller.hide();
   }
 
   readonly property bool popoutSwitchClosing: panel ? panel.popoutSwitchClosing === true : false
 
   function closeForPopoutSwitch() {
-    addDiskOpen = false
-    newDevicePath = ""
+    addDiskOpen = false;
+    newDevicePath = "";
     if (panel && panel.closeForPopoutSwitch) {
-      panel.closeForPopoutSwitch()
+      panel.closeForPopoutSwitch();
     } else {
-      root.controller.hide()
+      root.controller.hide();
     }
   }
 
   function toggle() {
-    if (root.opened) root.close()
-    else root.open()
+    if (root.opened)
+      root.close();
+    else
+      root.open();
   }
 
   Ui.KeyboardPanel {
@@ -60,7 +59,7 @@ Ui.Panel {
     open: root.opened
     centerOnBar: false
     contentWidth: panel.fittedContentWidth(Style.space(460))
-    contentHeight: panel.fittedContentHeight(scrollFlickable.contentHeight, Style.space(640))
+    contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight)
 
     Flickable {
       id: scrollFlickable
@@ -83,14 +82,16 @@ Ui.Panel {
           pool: root.pool
           onMountToggled: {
             if (root.pool.is_mounted) {
-              root.runAdmin(["unmount", root.pool.uuid || root.pool.mountpoint])
+              root.runAdmin(["unmount", root.pool.uuid || root.pool.mountpoint]);
             } else {
-              root.runAdmin(["mount", root.pool.uuid || (root.pool.devices && root.pool.devices.length > 0 ? root.pool.devices[0].dev_node : "")])
+              root.runAdmin(["mount", root.pool.uuid || (root.pool.devices && root.pool.devices.length > 0 ? root.pool.devices[0].dev_node : "")]);
             }
           }
         }
 
-        Ui.PanelSeparator { Layout.fillWidth: true }
+        Ui.PanelSeparator {
+          Layout.fillWidth: true
+        }
 
         // Section 2: Disk Topology
         RowLayout {
@@ -103,12 +104,10 @@ Ui.Panel {
 
           ActionButton {
             text: root.addDiskOpen ? "Cancel" : "+ Add Disk"
-            tooltipText: root.addDiskOpen
-              ? "Close partition selection dialog"
-              : "Select an available block device or partition to expand this Btrfs RAID pool"
+            tooltipText: root.addDiskOpen ? "Close partition selection dialog" : "Select an available block device or partition to expand this Btrfs RAID pool"
             onClicked: {
-              root.addDiskOpen = !root.addDiskOpen
-              root.newDevicePath = ""
+              root.addDiskOpen = !root.addDiskOpen;
+              root.newDevicePath = "";
             }
           }
         }
@@ -157,9 +156,9 @@ Ui.Panel {
                 tooltipText: "Execute btrfs device add on " + root.newDevicePath
                 onClicked: {
                   if (root.newDevicePath.trim() !== "" && root.pool.mountpoint) {
-                    root.runAdmin(["add", root.newDevicePath.trim(), root.pool.mountpoint])
-                    root.addDiskOpen = false
-                    root.newDevicePath = ""
+                    root.runAdmin(["add", root.newDevicePath.trim(), root.pool.mountpoint]);
+                    root.addDiskOpen = false;
+                    root.newDevicePath = "";
                   }
                 }
               }
@@ -179,16 +178,18 @@ Ui.Panel {
               Layout.fillWidth: true
               device: modelData
               mountpoint: root.pool.mountpoint || ""
-              onRemoveRequested: function(devNode) {
+              onRemoveRequested: function (devNode) {
                 if (root.pool.mountpoint) {
-                  root.runAdmin(["remove", devNode, root.pool.mountpoint])
+                  root.runAdmin(["remove", devNode, root.pool.mountpoint]);
                 }
               }
             }
           }
         }
 
-        Ui.PanelSeparator { Layout.fillWidth: true }
+        Ui.PanelSeparator {
+          Layout.fillWidth: true
+        }
 
         // Section 3: Maintenance Bar
         Ui.PanelSectionHeader {
@@ -205,13 +206,11 @@ Ui.Panel {
             text: (root.pool.scrub && root.pool.scrub.active) ? "Cancel Scrub" : "Scrub Pool"
             active: Boolean(root.pool.scrub && root.pool.scrub.active)
             destructive: Boolean(root.pool.scrub && root.pool.scrub.active)
-            tooltipText: (root.pool.scrub && root.pool.scrub.active)
-              ? "Cancel the active background checksum verification and repair scrub"
-              : "Verify data and metadata checksums across all RAID disks to detect and repair silent data corruption"
+            tooltipText: (root.pool.scrub && root.pool.scrub.active) ? "Cancel the active background checksum verification and repair scrub" : "Verify data and metadata checksums across all RAID disks to detect and repair silent data corruption"
             onClicked: {
               if (root.pool.mountpoint) {
-                var act = (root.pool.scrub && root.pool.scrub.active) ? "cancel" : "start"
-                root.runAdmin(["scrub", act, root.pool.mountpoint])
+                var act = (root.pool.scrub && root.pool.scrub.active) ? "cancel" : "start";
+                root.runAdmin(["scrub", act, root.pool.mountpoint]);
               }
             }
           }
@@ -221,13 +220,11 @@ Ui.Panel {
             text: (root.pool.balance && root.pool.balance.active) ? "Cancel Balance" : "Balance Pool"
             active: Boolean(root.pool.balance && root.pool.balance.active)
             destructive: Boolean(root.pool.balance && root.pool.balance.active)
-            tooltipText: (root.pool.balance && root.pool.balance.active)
-              ? "Cancel the active background chunk reallocation and balance"
-              : "Compact block groups and reallocate data chunks across disks to reclaim unused storage capacity"
+            tooltipText: (root.pool.balance && root.pool.balance.active) ? "Cancel the active background chunk reallocation and balance" : "Compact block groups and reallocate data chunks across disks to reclaim unused storage capacity"
             onClicked: {
               if (root.pool.mountpoint) {
-                var act = (root.pool.balance && root.pool.balance.active) ? "cancel" : "start"
-                root.runAdmin(["balance", act, root.pool.mountpoint])
+                var act = (root.pool.balance && root.pool.balance.active) ? "cancel" : "start";
+                root.runAdmin(["balance", act, root.pool.mountpoint]);
               }
             }
           }
@@ -245,12 +242,12 @@ Ui.Panel {
             Text {
               text: {
                 if (root.pool.scrub && root.pool.scrub.active) {
-                  return "Scrubbing: " + Format.formatPercent(root.pool.scrub.progress_percent)
+                  return "Scrubbing: " + Format.formatPercent(root.pool.scrub.progress_percent);
                 }
                 if (root.pool.balance && root.pool.balance.active) {
-                  return "Balancing: " + Format.formatPercent(root.pool.balance.progress_percent)
+                  return "Balancing: " + Format.formatPercent(root.pool.balance.progress_percent);
                 }
-                return ""
+                return "";
               }
               font.family: Style.font.family
               font.pixelSize: ThemeStyle.fontSize("caption")
@@ -259,7 +256,9 @@ Ui.Panel {
               color: Color.accent
             }
 
-            Item { Layout.fillWidth: true }
+            Item {
+              Layout.fillWidth: true
+            }
 
             Text {
               text: (root.pool.scrub && root.pool.scrub.active) ? ("Errors: " + (root.pool.scrub.errors || 0)) : ""
@@ -279,10 +278,12 @@ Ui.Panel {
             Rectangle {
               height: parent.height
               width: {
-                var p = 0
-                if (root.pool.scrub && root.pool.scrub.active) p = root.pool.scrub.progress_percent || 0
-                else if (root.pool.balance && root.pool.balance.active) p = root.pool.balance.progress_percent || 0
-                return Math.min(parent.width, Math.max(0, parent.width * (p / 100.0)))
+                var p = 0;
+                if (root.pool.scrub && root.pool.scrub.active)
+                  p = root.pool.scrub.progress_percent || 0;
+                else if (root.pool.balance && root.pool.balance.active)
+                  p = root.pool.balance.progress_percent || 0;
+                return Math.min(parent.width, Math.max(0, parent.width * (p / 100.0)));
               }
               radius: ThemeStyle.radiusFor("gauge", Style.cornerRadius)
               color: Color.accent
@@ -322,10 +323,11 @@ Ui.Panel {
             checked: Boolean((root.pool.scrub && root.pool.scrub.timer_enabled) || (root.pool.balance && root.pool.balance.timer_enabled))
             tooltipText: "Enable or disable parametric systemd timers (btrpool-scrub@.timer and btrpool-balance@.timer) for scheduled monthly scrubs and weekly balance routines"
             onToggled: {
-              if (!root.pool.mountpoint) return
-              var act = checked ? "enable" : "disable"
-              root.runAdmin(["timer", act, root.pool.mountpoint, "scrub"])
-              root.runAdmin(["timer", act, root.pool.mountpoint, "balance"])
+              if (!root.pool.mountpoint)
+                return;
+              var act = checked ? "enable" : "disable";
+              root.runAdmin(["timer", act, root.pool.mountpoint, "scrub"]);
+              root.runAdmin(["timer", act, root.pool.mountpoint, "balance"]);
             }
           }
         }

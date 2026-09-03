@@ -64,9 +64,32 @@ Item {
     return ""
   }
 
+  // Commit identification for live verification
+  property string commitId: "da9905b"
+  readonly property bool tooltipHovered: visible && opacity > 0 && mouseArea.containsMouse && !root.opened
+
+  Process {
+    id: gitRevProcess
+    command: {
+      var pluginDir = Qt.resolvedUrl("..").toString().replace(/^file:\/\//, "")
+      return ["git", "-C", pluginDir, "rev-parse", "--short=7", "HEAD"]
+    }
+    running: true
+    stdout: SplitParser {
+      onRead: function(line) {
+        var trimmed = String(line || "").trim()
+        if (trimmed.length >= 7) {
+          root.commitId = trimmed.substring(0, 7)
+        }
+      }
+    }
+  }
+
   readonly property string tooltipSummary: {
-    if (!primaryPool) return "Btrfs RAID Manager: No pools discovered"
-    var summary = (primaryPool.label || "RAID Pool") + " (" + (primaryPool.raid_profile || "RAID1") + ")\n"
+    var prefix = "Btrfs RAID Manager (" + root.commitId + ")"
+    if (!primaryPool) return prefix + ": No pools discovered"
+    var summary = prefix + "\n"
+    summary += (primaryPool.label || "RAID Pool") + " (" + (primaryPool.raid_profile || "RAID1") + ")\n"
     summary += "Status: " + poolStatus.toUpperCase() + "\n"
     summary += "Used: " + Format.formatBytes(primaryPool.used_bytes) + " / " + Format.formatBytes(primaryPool.total_bytes) + " (" + Format.formatPercent(primaryPool.percent_used) + ")\n"
     summary += "Disks: " + (primaryPool.devices ? primaryPool.devices.length : 0)
@@ -221,7 +244,7 @@ Item {
     id: bg
     anchors.fill: parent
     anchors.margins: Style.space(2)
-    radius: Style.radius(4)
+    radius: Style.cornerRadius > 0 ? Style.cornerRadius : 4
     color: {
       if (root.opened) {
         return root.bar ? Style.selectedFillFor(root.bar.foreground, Color.accent) : Qt.rgba(1, 1, 1, 0.12)
@@ -279,6 +302,10 @@ Item {
     anchors.fill: parent
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton | Qt.RightButton
+
+    ToolTip.visible: mouseArea.containsMouse && !root.opened
+    ToolTip.delay: 200
+    ToolTip.text: root.tooltipSummary
 
     onEntered: {
       if (root.bar && root.tooltipSummary !== "" && !root.opened) {

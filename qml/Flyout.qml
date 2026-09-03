@@ -106,8 +106,8 @@ Ui.Panel {
         Layout.fillWidth: true
         visible: root.addDiskOpen
         implicitHeight: addColumn.implicitHeight + Style.space(16)
-        radius: Style.radius(6)
-        color: Style.surfaceFillFor("popups", 0.05)
+        radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 6) : 6
+        color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.05)
         border.color: Color.accent
         border.width: 1
 
@@ -256,8 +256,8 @@ Ui.Panel {
         Rectangle {
           Layout.fillWidth: true
           height: Style.space(6)
-          radius: Style.radius(3)
-          color: Style.surfaceFillFor("popups", 0.1)
+          radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 3) : 3
+          color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.1)
 
           Rectangle {
             height: parent.height
@@ -267,7 +267,7 @@ Ui.Panel {
               else if (root.pool.balance && root.pool.balance.active) p = root.pool.balance.progress_percent || 0
               return Math.min(parent.width, Math.max(0, parent.width * (p / 100.0)))
             }
-            radius: Style.radius(3)
+            radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 3) : 3
             color: Color.accent
           }
         }

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "org.omarchy.btrfs-raid-manager",
   "name": "Btrfs RAID Manager",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "franelfers",
   "license": "GPL-3.0",
   "description": "Omarchy top-bar applet to inspect, mount, and manage Btrfs RAID1 storage pools.",

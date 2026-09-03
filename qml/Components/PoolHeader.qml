@@ -53,9 +53,9 @@ ColumnLayout {
         Rectangle {
           implicitWidth: profileText.implicitWidth + Style.space(8)
           implicitHeight: profileText.implicitHeight + Style.space(4)
-          radius: Style.radius(4)
-          color: Style.surfaceFillFor("popups", 0.08)
-          border.color: Color.border
+          radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 4) : 4
+          color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.08)
+          border.color: Color.muted
           border.width: 1
 
           Text {
@@ -123,13 +123,13 @@ ColumnLayout {
     Rectangle {
       Layout.fillWidth: true
       height: Style.space(8)
-      radius: Style.radius(4)
-      color: Style.surfaceFillFor("popups", 0.1)
+      radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 4) : 4
+      color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.1)
 
       Rectangle {
         height: parent.height
         width: Math.min(parent.width, Math.max(0, parent.width * ((pool.percent_used || 0) / 100.0)))
-        radius: Style.radius(4)
+        radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 4) : 4
         color: {
           if (pool.percent_used > 90) return Color.urgent
           if (pool.percent_used > 75) return Color.warning

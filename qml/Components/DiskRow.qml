@@ -14,11 +14,11 @@ Rectangle {
 
   implicitWidth: rowLayout.implicitWidth + Style.space(24)
   implicitHeight: rowLayout.implicitHeight + Style.space(16)
-  color: Style.surfaceFillFor("popups", 0.03)
-  radius: Style.radius(6)
-  border.color: device.missing || device.smart_status === "failing"
+  color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.05)
+  radius: Style.cornerRadius > 0 ? Style.cornerRadius : 6
+  border.color: (device.missing || device.smart_status === "failing")
     ? Color.urgent
-    : (device.smart_status === "warning" ? Color.warning : Color.border)
+    : (device.smart_status === "warning" ? Color.warning : Color.muted)
   border.width: 1
 
   RowLayout {
@@ -93,7 +93,7 @@ Rectangle {
       Layout.alignment: Qt.AlignVCenter
       implicitWidth: smartText.implicitWidth + Style.space(12)
       implicitHeight: smartText.implicitHeight + Style.space(6)
-      radius: Style.radius(4)
+      radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 4) : 4
       color: {
         if (device.missing) return Qt.rgba(0.9, 0.2, 0.2, 0.15)
         if (device.smart_status === "failing") return Qt.rgba(0.9, 0.2, 0.2, 0.15)
@@ -106,7 +106,7 @@ Rectangle {
         if (device.smart_status === "failing") return Color.urgent
         if (device.smart_status === "warning") return Color.warning
         if (device.smart_status === "passed") return Color.accent
-        return Color.border
+        return Color.muted
       }
       border.width: 1
 

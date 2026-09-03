@@ -167,7 +167,7 @@ radiusFor(elementType, baseRadius)
 - **Zero-Rounding Invariant:** If `baseRadius <= 0` (e.g. Hyprland configured with sharp square corners), `radiusFor` strictly returns `0` for all element types, preventing disconnected rounded elements in sharp themes.
 - **Proportional Clamping Hierarchy:**
   * `"card"`, `"dialog"`, `"row"`: `Math.min(base, 8)`
-  * `"button"`, `"input"`, `"textfield"`: `Math.min(base, 6)`
+  * `"button"`, `"input"`, `"textfield"`, `"toggle"`, `"toggleRing"`: `Math.min(base, 6)`
   * `"badge"`, `"tag"`, `"tooltip"`: `Math.min(base, 4)`
   * `"gauge"`, `"track"`, `"progress"`: `Math.min(base, 3)`
   * `"pill"`: `Math.max(base, 12)`
@@ -194,6 +194,8 @@ radiusFor(elementType, baseRadius)
   Returns `{ background: color, border: color, borderWidth: int, radius: int }` for container cards (`DiskRow`, add-disk dialog).
 * `buttonStyle(theme, isHovered, isActive, isUrgent, isPressed)`:
   Returns `{ background: color, border: color, borderWidth: int, foreground: color, radius: int }` for interactive buttons.
+* `toggleStyle(theme, isHovered, isChecked)`:
+  Returns `{ trackBackground: color, trackBorder: color, knobColor: color, ringBorder: color, radius: int, trackRadius: int }` for toggle controls, guaranteeing identical hover ring corner radius to action buttons.
 * `badgeStyle(theme, status)`:
   Returns `{ background: color, border: color, borderWidth: int, text: color, radius: int }` for status tags (`"missing"`, `"failing"`, `"warning"`, `"passed"`, `"working"`, `"muted"`).
 * `tooltipStyle(theme)`:
@@ -215,7 +217,9 @@ radiusFor(elementType, baseRadius)
 * `iconSize(token)`: Standard icon dimensions (`"small"`: 14, `"bar"`: 16, `"row"`: 24, `"header"`: 26, `"large"`: 32).
 * `paddingFor(role)`: Standard padding structures (`"control"`, `"card"`, `"badge"`, `"flyout"`).
 
-### 6.3 Tooltip Uniformity (`StyledToolTip.qml`)
+### 6.3 Tooltip & Interactive Control Uniformity (`ActionButton.qml`, `ToggleSwitch.qml`, `StyledToolTip.qml`)
 
-To eliminate native unstyled Qt ToolTips and inconsistent square tooltips previously inherited from `Ui.Button`, all flyout controls (`ActionButton`, `ToggleSwitch`) use `qml/Components/StyledToolTip.qml` or bind directly to `ThemeStyle.tooltipStyle(Color)`. This guarantees uniform theme background, subtle border, theme text color, and consistent corner rounding matching `radiusFor("tooltip")`.
+To eliminate upstream border bugs and shape discrepancies:
+- All interactive controls (`ActionButton`, `ToggleSwitch`) standardize on `ThemeStyle.radiusFor("button")` and `radiusFor("toggleRing")`, ensuring identical rounded corner radii (`Math.min(base, 6)` or `0` on sharp themes).
+- Flyout controls use `qml/Components/StyledToolTip.qml` to enforce consistent tooltip backgrounds, subtle borders, text color, and corner rounding.
 

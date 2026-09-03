@@ -55,6 +55,8 @@ function radiusFor(elementType, baseRadius) {
     case "button":
     case "input":
     case "textfield":
+    case "toggle":
+    case "toggleRing":
       return Math.min(base, 6)
     case "badge":
     case "tag":
@@ -168,7 +170,7 @@ function buttonStyle(theme, isHovered, isActive, isUrgent, isPressed) {
 
   var fg = isUrgent ? t.urgent : (isActive ? t.accent : t.foreground)
   var bc = isUrgent ? colorWithAlpha(t.urgent, isHovered ? 1.0 : 0.6)
-                    : (isActive ? t.accent : (isHovered ? colorWithAlpha(t.accent, 0.5) : "transparent"))
+                    : (isActive ? t.accent : (isHovered ? colorWithAlpha(t.accent, 0.6) : colorWithAlpha(t.foreground, 0.2)))
 
   return {
     background: bg,
@@ -176,6 +178,27 @@ function buttonStyle(theme, isHovered, isActive, isUrgent, isPressed) {
     borderWidth: 1,
     foreground: fg,
     radius: radiusFor("button", t.cornerRadius)
+  }
+}
+
+function toggleStyle(theme, isHovered, isChecked) {
+  var t = resolveTheme(theme)
+  var trackBg = isChecked
+    ? colorWithAlpha(t.accent, isHovered ? 0.32 : 0.22)
+    : colorWithAlpha(t.foreground, isHovered ? 0.12 : 0.06)
+  var trackBorder = isChecked
+    ? t.accent
+    : (isHovered ? colorWithAlpha(t.accent, 0.6) : colorWithAlpha(t.foreground, 0.2))
+  var knobColor = isChecked ? t.accent : colorWithAlpha(t.foreground, 0.85)
+  var ringBorder = isHovered ? colorWithAlpha(t.accent, 0.6) : "transparent"
+
+  return {
+    trackBackground: trackBg,
+    trackBorder: trackBorder,
+    knobColor: knobColor,
+    ringBorder: ringBorder,
+    radius: radiusFor("toggleRing", t.cornerRadius),
+    trackRadius: (t.cornerRadius > 0) ? 999 : 0
   }
 }
 

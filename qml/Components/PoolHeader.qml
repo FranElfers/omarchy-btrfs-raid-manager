@@ -94,12 +94,12 @@ ColumnLayout {
     }
   }
 
+  readonly property var gaugeToken: ThemeStyle.progressGaugeStyle(Color, (pool && pool.percent_used) || 0, false)
+
   // Capacity usage gauge
   ColumnLayout {
     Layout.fillWidth: true
     spacing: Style.space(4)
-
-    readonly property var gaugeToken: ThemeStyle.progressGaugeStyle(Color, pool.percent_used, false)
 
     RowLayout {
       Layout.fillWidth: true
@@ -128,13 +128,13 @@ ColumnLayout {
       Layout.fillWidth: true
       height: Style.space(8)
       radius: ThemeStyle.radiusFor("gauge", Style.cornerRadius)
-      color: root.gaugeToken.trackColor
+      color: (root.gaugeToken && root.gaugeToken.trackColor) ? root.gaugeToken.trackColor : ThemeStyle.colorWithAlpha(Color.foreground, 0.1)
 
       Rectangle {
         height: parent.height
         width: Math.min(parent.width, Math.max(0, parent.width * ((pool.percent_used || 0) / 100.0)))
         radius: ThemeStyle.radiusFor("gauge", Style.cornerRadius)
-        color: root.gaugeToken.fillColor
+        color: (root.gaugeToken && root.gaugeToken.fillColor) ? root.gaugeToken.fillColor : Color.accent
       }
     }
 

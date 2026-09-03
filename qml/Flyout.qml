@@ -317,19 +317,15 @@ Ui.Panel {
             }
           }
 
-          Ui.ToggleSwitch {
+          ToggleSwitch {
             id: maintenanceSwitch
             checked: Boolean((root.pool.scrub && root.pool.scrub.timer_enabled) || (root.pool.balance && root.pool.balance.timer_enabled))
+            tooltipText: "Enable or disable parametric systemd timers (btrpool-scrub@.timer and btrpool-balance@.timer) for scheduled monthly scrubs and weekly balance routines"
             onToggled: {
               if (!root.pool.mountpoint) return
               var act = checked ? "enable" : "disable"
               root.runAdmin(["timer", act, root.pool.mountpoint, "scrub"])
               root.runAdmin(["timer", act, root.pool.mountpoint, "balance"])
-            }
-
-            StyledToolTip {
-              visible: maintenanceSwitch.containsMouse
-              text: "Enable or disable parametric systemd timers (btrpool-scrub@.timer and btrpool-balance@.timer) for scheduled monthly scrubs and weekly balance routines"
             }
           }
         }

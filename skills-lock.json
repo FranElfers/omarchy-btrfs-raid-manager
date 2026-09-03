@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "omarchy-plugin": {
+      "source": "closetheloop-dev/skills",
+      "sourceType": "github",
+      "skillPath": "skills/omarchy/omarchy-plugin/SKILL.md",
+      "computedHash": "af3293c40611f9ff402fc4a3555340af20394e9d283deb46a0575fa53d6cf2a7"
+    }
+  }
+}

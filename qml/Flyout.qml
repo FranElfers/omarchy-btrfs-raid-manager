@@ -57,49 +57,60 @@ Ui.Panel {
     owner: root.barIdentity
     bar: root.bar
     open: root.opened
-    centerOnBar: true
-    contentWidth: Style.space(440)
-    contentHeight: contentColumn.implicitHeight + Style.space(24)
+    centerOnBar: false
+    contentWidth: panel.fittedContentWidth(Style.space(460))
+    contentHeight: panel.fittedContentHeight(scrollFlickable.contentHeight, Style.space(640))
 
-    ColumnLayout {
-      id: contentColumn
+    Flickable {
+      id: scrollFlickable
       anchors.fill: parent
       anchors.margins: Style.space(12)
-      spacing: Style.space(12)
+      contentWidth: width
+      contentHeight: contentColumn.implicitHeight
+      clip: true
+      boundsBehavior: Flickable.StopAtBounds
+      interactive: contentHeight > height
 
-      // Section 1: Header
-      PoolHeader {
-        Layout.fillWidth: true
-        pool: root.pool
-        onMountToggled: {
-          if (root.pool.is_mounted) {
-            root.runAdmin(["unmount", root.pool.uuid || root.pool.mountpoint])
-          } else {
-            root.runAdmin(["mount", root.pool.uuid || (root.pool.devices && root.pool.devices.length > 0 ? root.pool.devices[0].dev_node : "")])
-          }
-        }
-      }
+      ColumnLayout {
+        id: contentColumn
+        width: scrollFlickable.width
+        spacing: Style.space(12)
 
-      Ui.PanelSeparator { Layout.fillWidth: true }
-
-      // Section 2: Disk Topology
-      RowLayout {
-        Layout.fillWidth: true
-
-        Ui.PanelSectionHeader {
-          text: "Pool Disks"
+        // Section 1: Header
+        PoolHeader {
           Layout.fillWidth: true
-        }
-
-        ActionButton {
-          text: root.addDiskOpen ? "Cancel" : "+ Add Disk"
-          tooltipText: root.addDiskOpen ? "Close add disk dialog" : "Add a new block device to this RAID pool"
-          onClicked: {
-            root.addDiskOpen = !root.addDiskOpen
-            root.newDevicePath = ""
+          pool: root.pool
+          onMountToggled: {
+            if (root.pool.is_mounted) {
+              root.runAdmin(["unmount", root.pool.uuid || root.pool.mountpoint])
+            } else {
+              root.runAdmin(["mount", root.pool.uuid || (root.pool.devices && root.pool.devices.length > 0 ? root.pool.devices[0].dev_node : "")])
+            }
           }
         }
-      }
+
+        Ui.PanelSeparator { Layout.fillWidth: true }
+
+        // Section 2: Disk Topology
+        RowLayout {
+          Layout.fillWidth: true
+
+          Ui.PanelSectionHeader {
+            text: "Pool Disks"
+            Layout.fillWidth: true
+          }
+
+          ActionButton {
+            text: root.addDiskOpen ? "Cancel" : "+ Add Disk"
+            tooltipText: root.addDiskOpen
+              ? "Close partition selection dialog"
+              : "Select an available block device or partition to expand this Btrfs RAID pool"
+            onClicked: {
+              root.addDiskOpen = !root.addDiskOpen
+              root.newDevicePath = ""
+            }
+          }
+        }
 
       // Add Disk Dialog inline
       Rectangle {
@@ -192,7 +203,9 @@ Ui.Panel {
           text: (root.pool.scrub && root.pool.scrub.active) ? "Cancel Scrub" : "Scrub Pool"
           active: Boolean(root.pool.scrub && root.pool.scrub.active)
           destructive: Boolean(root.pool.scrub && root.pool.scrub.active)
-          tooltipText: "Scan and verify data checksums across disks to detect and repair silent data corruption"
+          tooltipText: (root.pool.scrub && root.pool.scrub.active)
+            ? "Cancel the active background checksum verification and repair scrub"
+            : "Verify data and metadata checksums across all RAID disks to detect and repair silent data corruption"
           onClicked: {
             if (root.pool.mountpoint) {
               var act = (root.pool.scrub && root.pool.scrub.active) ? "cancel" : "start"
@@ -206,7 +219,9 @@ Ui.Panel {
           text: (root.pool.balance && root.pool.balance.active) ? "Cancel Balance" : "Balance Pool"
           active: Boolean(root.pool.balance && root.pool.balance.active)
           destructive: Boolean(root.pool.balance && root.pool.balance.active)
-          tooltipText: "Reallocate under-utilized chunks across drives to reclaim unused storage capacity"
+          tooltipText: (root.pool.balance && root.pool.balance.active)
+            ? "Cancel the active background chunk reallocation and balance"
+            : "Compact block groups and reallocate data chunks across disks to reclaim unused storage capacity"
           onClicked: {
             if (root.pool.mountpoint) {
               var act = (root.pool.balance && root.pool.balance.active) ? "cancel" : "start"
@@ -301,6 +316,7 @@ Ui.Panel {
         }
 
         Ui.ToggleSwitch {
+          id: maintenanceSwitch
           checked: Boolean((root.pool.scrub && root.pool.scrub.timer_enabled) || (root.pool.balance && root.pool.balance.timer_enabled))
           onToggled: {
             if (!root.pool.mountpoint) return
@@ -308,8 +324,13 @@ Ui.Panel {
             root.runAdmin(["timer", act, root.pool.mountpoint, "scrub"])
             root.runAdmin(["timer", act, root.pool.mountpoint, "balance"])
           }
+
+          ToolTip.visible: maintenanceSwitch.containsMouse
+          ToolTip.delay: 300
+          ToolTip.text: "Enable or disable parametric systemd timers (btrpool-scrub@.timer and btrpool-balance@.timer) for scheduled monthly scrubs and weekly balance routines"
         }
       }
     }
   }
+}
 }

@@ -86,8 +86,8 @@ ColumnLayout {
     ActionButton {
       text: pool.is_mounted ? "Unmount" : "Mount"
       tooltipText: pool.is_mounted
-        ? "Safely unmount pool via UDisks2"
-        : "Mount pool filesystem via UDisks2"
+        ? ("Safely unmount " + (pool.label || "RAID pool") + " from " + (pool.mountpoint || "filesystem") + " via UDisks2")
+        : ("Mount " + (pool.label || "RAID pool") + " filesystem" + (pool.mountpoint ? " to " + pool.mountpoint : "") + " via UDisks2")
       onClicked: root.mountToggled()
     }
   }

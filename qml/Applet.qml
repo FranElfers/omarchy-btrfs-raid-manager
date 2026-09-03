@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import qs.Commons
@@ -64,7 +65,7 @@ Item {
   }
 
   // Commit identification for live verification
-  property string commitId: "e7b40f8"
+  property string commitId: "6229dba"
   readonly property bool tooltipHovered: visible && opacity > 0 && mouseArea.containsMouse && !root.opened
 
   Process {
@@ -95,12 +96,27 @@ Item {
     return summary
   }
 
-  // Color tokens bound directly to host bar properties and theme
-  readonly property color textColor: {
-    if (isDegraded) return bar ? bar.urgent : Color.urgent
+  readonly property bool hasSmartIssues: {
+    if (!primaryPool || !primaryPool.devices) return false
+    for (var i = 0; i < primaryPool.devices.length; i++) {
+      var d = primaryPool.devices[i]
+      if (d.missing === true) return true
+      if (d.smart_status === "failing" || d.smart_status === "warning") return true
+      if ((d.write_errs || 0) > 0 || (d.read_errs || 0) > 0 || (d.corruption_errs || 0) > 0) return true
+    }
+    return false
+  }
+
+  readonly property bool isAttentionNeeded: isDegraded || hasSmartIssues
+
+  // Color tokens bound dynamically to host bar properties and theme
+  readonly property color iconColor: {
+    if (isAttentionNeeded) return bar ? bar.urgent : Color.urgent
     if (isWorking) return bar ? (bar.accent || Color.accent) : Color.accent
     return bar ? bar.foreground : Color.foreground
   }
+
+  readonly property color textColor: iconColor
 
   // Popout coordination with Bar host
   readonly property bool opened: (bar && bar.activePopout === root) || (flyoutLoader.item ? flyoutLoader.item.opened === true : false)
@@ -266,17 +282,27 @@ Item {
       id: iconImg
       width: root.iconSize
       height: root.iconSize
-      anchors.verticalCenter: parent.verticalCenter
       source: root.statusIcon
       sourceSize: Qt.size(root.iconSize, root.iconSize)
       fillMode: Image.PreserveAspectFit
+      visible: false
+      layer.enabled: true
+    }
 
-      // Working animated pulse
+    MultiEffect {
+      width: root.iconSize
+      height: root.iconSize
+      anchors.verticalCenter: parent.verticalCenter
+      source: iconImg
+      colorization: 1.0
+      colorizationColor: root.iconColor
+
+      // Working animated pulse during scrub or balance
       SequentialAnimation on opacity {
         running: root.isWorking
         loops: Animation.Infinite
         alwaysRunToEnd: false
-        NumberAnimation { to: 0.5; duration: 800; easing.type: Easing.InOutQuad }
+        NumberAnimation { to: 0.35; duration: 800; easing.type: Easing.InOutQuad }
         NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
       }
     }

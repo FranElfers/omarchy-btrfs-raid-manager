@@ -23,14 +23,11 @@ Item {
     id: btn
     anchors.fill: parent
     text: root.text
+    tooltipText: root.tooltipText
     enabled: root.enabled
     active: root.active
     accent: root.accent
     foreground: root.destructive ? Color.urgent : root.foreground
     onClicked: root.clicked()
-
-    ToolTip.visible: root.tooltipText !== "" && hovered
-    ToolTip.delay: 350
-    ToolTip.text: root.tooltipText
   }
 }

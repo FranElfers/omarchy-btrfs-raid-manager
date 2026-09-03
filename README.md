@@ -1,141 +1,74 @@
-# omarchy-btrfs-raid-manager
+# Btrfs RAID Manager — Omarchy bar widget
 
-[![Build Status](https://github.com/franelfers/omarchy-btrfs-raid-manager/actions/workflows/build.yml/badge.svg)](https://github.com/franelfers/omarchy-btrfs-raid-manager/actions/workflows/build.yml)
-[![Test Suite](https://github.com/franelfers/omarchy-btrfs-raid-manager/actions/workflows/test.yml/badge.svg)](https://github.com/franelfers/omarchy-btrfs-raid-manager/actions/workflows/test.yml)
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+Inspect, mount, and manage Btrfs RAID1 storage pools from the bar.
 
-A lightweight, non-complex Omarchy top-bar applet to inspect, mount, and manage **Btrfs RAID1** storage pools with zero periodic polling overhead.
+![Applet preview](preview.png)
 
----
+State is streamed over NDJSON by a resident Go companion process via D-Bus (`UDisks2` and `systemd`) and `/sys/fs/btrfs/` — no periodic polling scripts, no spawning subcommands on a timer.
 
-## Features
+## Install
 
-* **Zero-Polling Reactivity**: Single resident Go daemon managed via Quickshell's `Process` model, streaming newline-delimited JSON (NDJSON) reactively by listening to kernel `sysfs` and D-Bus signals (`org.freedesktop.UDisks2` and `systemd`).
-* **Lifecycle & Orphan Prevention**: Monitors standard input (`os.Stdin`) for `io.EOF` and traps `SIGPIPE` upon pipe closure by Quickshell, ensuring zero orphaned processes lingering on the bus.
-* **Top-Bar Status Applet**:
-  * Dynamic SVG health icons:
-    * 🟢 **Normal**: Clean themed accent.
-    * 🔵 **Active Operation**: Animated pulse during Scrub or Balance.
-    * 🔴 **Degraded / Error**: Urgent warning for missing disks or SMART failures.
-  * Real-time badges for used capacity percentage or current task progress (`Scrub: 42%`).
-* **Interactive Flyout**:
-  * **Header**: Mountpoint, UUID, real capacity gauge (`Free estimated` vs. `Used`), and fast Mount/Unmount button.
-  * **Disk Topology**: Per-disk cards showing device nodes, drive model, and ATA S.M.A.R.T. health badges (temperature, bad sector detection).
-  * **Maintenance & Scheduling**: One-click Scrub and Balance triggers with informative tooltips, real-time progress indicators, and an automated background maintenance toggle switch (systemd timers).
-* **Minimal Polkit Footprint**: Standard mount/unmount is delegated to UDisks2 native Polkit permissions, while custom Polkit policies (`org.omarchy.btrfs.raidmanager.policy`) are strictly reserved for destructive device operations (`add`, `remove`, `replace`).
-* **100% Vector Assets**: Clean, resolution-independent SVG icons.
-
----
-
-## Architecture
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                    Omarchy Bar / Quickshell                 │
-│              (Applet.qml  ◄──►  Flyout.qml)                 │
-└──────────────────────────────▲──────────────────────────────┘
-                               │ NDJSON via Stdout
-┌──────────────────────────────▼──────────────────────────────┐
-│                    raid-manager stream                      │
-│            (Resident Go Event-Driven Monitor)               │
-└──────────────┬───────────────────────────────┬──────────────┘
-               │                               │
-        Sysfs Telemetry                  D-Bus Signals
-  (/sys/fs/btrfs/<uuid>/)         (UDisks2 & systemd1 Manager)
+```sh
+omarchy plugin add [https://github.com/franelfers/omarchy-btrfs-raid-manager.git](https://github.com/franelfers/omarchy-btrfs-raid-manager.git) --enable
+omarchy bar move io.github.franelfers.btrfs-raid-manager --section right
+omarchy restart shell
 ```
 
-For in-depth architectural details, see [docs/architecture.md](docs/architecture.md).
+### Local development
 
----
-
-## Quick Start: Single-Command Installation
-
-Install and enable the plugin directly in Omarchy with a single command:
-
-```bash
-omarchy plugin add https://github.com/franelfers/omarchy-btrfs-raid-manager.git --enable
-```
-
-The applet will automatically initialize, launch the resident monitoring daemon, and appear in your Omarchy top bar immediately.
-
-### Local / Offline Installation (No GitHub required)
-
-If you have downloaded or cloned the repository locally, run the installer:
-
-```bash
-# Copy install and immediately enable in top bar
-./install.sh --enable
-
-# Or symlink into Omarchy for active development
+```sh
+git clone [https://github.com/franelfers/omarchy-btrfs-raid-manager.git](https://github.com/franelfers/omarchy-btrfs-raid-manager.git)
+cd omarchy-btrfs-raid-manager
 ./install.sh --link --enable
 ```
 
-To uninstall:
-```bash
-./install.sh --remove
-```
+## Usage
 
----
+- **Bar glyph** — shows pool health at a glance (normal accent, pulsing during scrub/balance, urgent on degraded pool or SMART errors) with used percentage.
+- **Click** — toggles the flyout panel.
+- **Flyout**:
+- Pool capacity gauge (`Free estimated` vs. `Used`) and mount/unmount toggle.
+- Disk topology list with device nodes, models, and ATA S.M.A.R.T. health badges.
+- Trigger or cancel scrub and balance tasks.
+- Background maintenance schedule toggle (systemd timers).
 
-## Dependencies & Recommendations
+## What it reads
 
-The applet is designed for **zero-friction usage** and **graceful degradation**:
+|                       | Source                     | Shown                                                             |
+| --------------------- | -------------------------- | ----------------------------------------------------------------- |
+| Topology & Allocation | `/sys/fs/btrfs/<uuid>/`    | Real capacity, device list, raid profile                          |
+| Mounts & Devices      | `org.freedesktop.UDisks2`  | Mount state, block topology, drive attachment                     |
+| Maintenance progress  | `btrfs --format=json`      | Scrub and balance completion percentage                           |
+| Drive health          | `smartctl`                 | Temperature and SMART attributes (falls back to `N/A` if missing) |
+| Services & Timers     | `org.freedesktop.systemd1` | Scrub/balance unit state and timer schedules                      |
 
-* **Base Requirements**:
-  * Omarchy Desktop Environment with Quickshell
-  * Standard system services (`systemd`, `udisks2`, Linux kernel `sysfs`)
-* **Recommended System Tools**:
-  * `btrfs-progs`: Provides `btrfs` utilities for scrub, balance, and topology inspection.
-  * `smartmontools`: *(Soft recommendation)* Provides `smartctl` for drive temperature and S.M.A.R.T. health telemetry. If `smartmontools` is not installed, the applet degrades gracefully by marking drive S.M.A.R.T. status as `SMART N/A` without crashing or throwing errors.
+## Requirements
 
-To install recommended tools on Arch/Omarchy:
-```bash
-omarchy pkg add btrfs-progs smartmontools
-```
+- `omarchy-shell` with Quickshell runtime
+- `btrfs-progs`
+- `smartmontools` _(optional, for SMART telemetry)_
 
----
+Standard mount/unmount actions use native UDisks2 Polkit rules. Destructive mutations (`device add/remove/replace`) require the bundled Polkit policy:
 
-## Optional: Background Timers & Polkit Policy
-
-Basic pool monitoring, capacity inspection, and mount/unmount actions work immediately out of the box without root intervention.
-
-For optional background scheduled maintenance (monthly scrub / weekly balance systemd timers) and custom Polkit elevation for disk additions:
-
-```bash
-# Optional: Install scheduled maintenance timer units
-sudo cp systemd/btrpool-* /etc/systemd/system/
-sudo systemctl daemon-reload
-
-# Optional: Install Polkit policy for disk add/remove/replace actions
+```sh
 sudo cp polkit/org.omarchy.btrfs.raidmanager.policy /usr/share/polkit-1/actions/
 ```
 
----
+To enable background scheduled maintenance:
 
-## Testing & Verification
+```sh
+sudo cp systemd/btrpool-* /etc/systemd/system/
+sudo systemctl daemon-reload
+```
 
-Run the test suite:
-```bash
+## Verification
+
+```sh
 go test -v ./...
-```
-
-Validate the plugin manifest:
-```bash
 omarchy plugin validate .
+systemd-analyze verify systemd/btrpool-*
 ```
-
-Verify systemd unit syntax:
-```bash
-systemd-analyze verify systemd/btrpool-scrub@.service systemd/btrpool-balance@.service
-```
-
-Validate Polkit XML policy:
-```bash
-xmllint --noout polkit/org.omarchy.btrfs.raidmanager.policy
-```
-
----
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0** (GPL-3.0). See [LICENSE](LICENSE) for details.
+GPL-3.0 — see [LICENSE](https://www.google.com/search?q=LICENSE).

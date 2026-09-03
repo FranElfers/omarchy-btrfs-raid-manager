@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 import qs.Commons
 import qs.Ui as Ui
 import "../Format.js" as Format
@@ -20,17 +21,32 @@ ColumnLayout {
     spacing: Style.space(10)
 
     // Health Icon
-    Image {
+    Item {
       Layout.preferredWidth: ThemeStyle.iconSize("header")
       Layout.preferredHeight: ThemeStyle.iconSize("header")
-      source: {
-        if (!pool.status) return Qt.resolvedUrl("../../assets/icon-pool-healthy.svg")
-        if (pool.status === "degraded") return Qt.resolvedUrl("../../assets/icon-pool-degraded.svg")
-        if (pool.status === "working") return Qt.resolvedUrl("../../assets/icon-pool-working.svg")
-        return Qt.resolvedUrl("../../assets/icon-pool-healthy.svg")
+
+      Image {
+        id: poolIconImg
+        anchors.fill: parent
+        source: {
+          if (!pool.status) return Qt.resolvedUrl("../../assets/icon-pool-healthy.svg")
+          if (pool.status === "degraded") return Qt.resolvedUrl("../../assets/icon-pool-degraded.svg")
+          if (pool.status === "working") return Qt.resolvedUrl("../../assets/icon-pool-working.svg")
+          return Qt.resolvedUrl("../../assets/icon-pool-healthy.svg")
+        }
+        sourceSize.width: ThemeStyle.iconSize("header")
+        sourceSize.height: ThemeStyle.iconSize("header")
+        fillMode: Image.PreserveAspectFit
+        visible: false
+        layer.enabled: true
       }
-      sourceSize.width: ThemeStyle.iconSize("header")
-      sourceSize.height: ThemeStyle.iconSize("header")
+
+      MultiEffect {
+        anchors.fill: parent
+        source: poolIconImg
+        colorization: 1.0
+        colorizationColor: ThemeStyle.poolIconColor(Color, root.pool.status)
+      }
     }
 
     // Pool name and profile

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Effects
 import qs.Commons
 import qs.Ui as Ui
 import "../Format.js" as Format
@@ -15,6 +16,7 @@ Rectangle {
 
   readonly property bool isUrgent: Boolean(device.missing || device.smart_status === "failing")
   readonly property bool isWarning: Boolean(device.smart_status === "warning")
+  readonly property color diskIconColor: ThemeStyle.diskIconColor(Color, hoverHandler.hovered, isUrgent, isWarning)
   readonly property var cardToken: ThemeStyle.cardStyle(Color, hoverHandler.hovered, false, isUrgent)
 
   implicitWidth: rowLayout.implicitWidth + Style.space(24)
@@ -37,14 +39,29 @@ Rectangle {
     spacing: Style.space(10)
 
     // Disk SVG icon
-    Image {
+    Item {
       Layout.preferredWidth: ThemeStyle.iconSize("row")
       Layout.preferredHeight: ThemeStyle.iconSize("row")
       Layout.alignment: Qt.AlignVCenter
-      source: Qt.resolvedUrl("../../assets/icon-disk.svg")
-      sourceSize.width: ThemeStyle.iconSize("row")
-      sourceSize.height: ThemeStyle.iconSize("row")
       opacity: device.missing ? 0.4 : 1.0
+
+      Image {
+        id: diskIconImg
+        anchors.fill: parent
+        source: Qt.resolvedUrl("../../assets/icon-disk.svg")
+        sourceSize.width: ThemeStyle.iconSize("row")
+        sourceSize.height: ThemeStyle.iconSize("row")
+        fillMode: Image.PreserveAspectFit
+        visible: false
+        layer.enabled: true
+      }
+
+      MultiEffect {
+        anchors.fill: parent
+        source: diskIconImg
+        colorization: 1.0
+        colorizationColor: root.diskIconColor
+      }
     }
 
     // Disk details

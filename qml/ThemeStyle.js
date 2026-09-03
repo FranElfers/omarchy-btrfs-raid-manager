@@ -270,6 +270,26 @@ function progressGaugeStyle(theme, percent, isUrgent) {
   }
 }
 
+function diskIconColor(theme, isHovered, isUrgent, isWarning) {
+  var t = resolveTheme(theme)
+  if (isUrgent) return t.urgent
+  if (isWarning) return t.warning
+  if (isHovered) return t.accent
+  return t.foreground
+}
+
+function poolIconColor(theme, status) {
+  var t = resolveTheme(theme)
+  var s = String(status || "").toLowerCase()
+  if (s === "degraded" || s === "missing" || s === "urgent" || s === "error") {
+    return t.urgent
+  }
+  if (s === "working") {
+    return t.accent
+  }
+  return t.accent
+}
+
 // 8. Dimensions and Sizing
 function iconSize(token) {
   if (typeof Style !== "undefined" && Style.space) {

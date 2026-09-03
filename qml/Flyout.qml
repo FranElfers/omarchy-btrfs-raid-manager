@@ -64,7 +64,6 @@ Ui.Panel {
     Flickable {
       id: scrollFlickable
       anchors.fill: parent
-      anchors.margins: Style.space(12)
       contentWidth: width
       contentHeight: contentColumn.implicitHeight
       clip: true

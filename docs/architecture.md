@@ -182,6 +182,8 @@ radiusFor(elementType, baseRadius)
 * `textSecondary(theme)`: Returns secondary text color at 70% opacity.
 * `textMuted(theme)`: Returns muted text color at 48% opacity.
 * `warningColor(theme)`: Resolves the semantic warning palette color.
+* `diskIconColor(theme, isHovered, isUrgent, isWarning)`: Resolves semantic color for disk row icons (urgent > warning > hover accent > theme foreground).
+* `poolIconColor(theme, status)`: Resolves semantic color for pool health status icons (degraded/urgent > working accent > healthy accent).
 
 #### Interactive State Evaluation
 

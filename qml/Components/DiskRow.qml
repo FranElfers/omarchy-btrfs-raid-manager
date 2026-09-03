@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import qs.Commons
 import qs.Ui as Ui
 import "../Format.js" as Format
+import "../ThemeStyle.js" as ThemeStyle
 
 Rectangle {
   id: root
@@ -12,14 +13,22 @@ Rectangle {
 
   signal removeRequested(string devNode)
 
+  readonly property bool isUrgent: Boolean(device.missing || device.smart_status === "failing")
+  readonly property bool isWarning: Boolean(device.smart_status === "warning")
+  readonly property var cardToken: ThemeStyle.cardStyle(Color, hoverHandler.hovered, false, isUrgent)
+
   implicitWidth: rowLayout.implicitWidth + Style.space(24)
   implicitHeight: rowLayout.implicitHeight + Style.space(16)
-  color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.05)
-  radius: Style.cornerRadius > 0 ? Style.cornerRadius : 6
-  border.color: (device.missing || device.smart_status === "failing")
+  color: cardToken.background
+  radius: ThemeStyle.radiusFor("card", Style.cornerRadius)
+  border.color: isUrgent
     ? Color.urgent
-    : (device.smart_status === "warning" ? Color.warning : Color.muted)
-  border.width: 1
+    : (isWarning ? ThemeStyle.warningColor(Color) : cardToken.border)
+  border.width: cardToken.borderWidth
+
+  HoverHandler {
+    id: hoverHandler
+  }
 
   RowLayout {
     id: rowLayout
@@ -29,12 +38,12 @@ Rectangle {
 
     // Disk SVG icon
     Image {
-      Layout.preferredWidth: Style.space(24)
-      Layout.preferredHeight: Style.space(24)
+      Layout.preferredWidth: ThemeStyle.iconSize("row")
+      Layout.preferredHeight: ThemeStyle.iconSize("row")
       Layout.alignment: Qt.AlignVCenter
       source: Qt.resolvedUrl("../../assets/icon-disk.svg")
-      sourceSize.width: Style.space(24)
-      sourceSize.height: Style.space(24)
+      sourceSize.width: ThemeStyle.iconSize("row")
+      sourceSize.height: ThemeStyle.iconSize("row")
       opacity: device.missing ? 0.4 : 1.0
     }
 
@@ -49,7 +58,7 @@ Rectangle {
         Text {
           text: device.dev_node || "Unknown"
           font.family: Style.font.family
-          font.pixelSize: Style.font.body
+          font.pixelSize: ThemeStyle.fontSize("body")
           font.bold: true
           renderType: Text.NativeRendering
           color: device.missing ? Color.urgent : Color.foreground
@@ -58,9 +67,9 @@ Rectangle {
         Text {
           text: device.size_bytes > 0 ? Format.formatBytes(device.size_bytes) : ""
           font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          font.pixelSize: ThemeStyle.fontSize("caption")
           renderType: Text.NativeRendering
-          color: Qt.darker(Color.foreground, 1.4)
+          color: ThemeStyle.textSecondary(Color)
           visible: text !== ""
         }
       }
@@ -68,9 +77,9 @@ Rectangle {
       Text {
         text: device.model ? (device.model + (device.serial ? " (" + device.serial + ")" : "")) : "Device #" + (device.dev_id || "")
         font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        font.pixelSize: ThemeStyle.fontSize("caption")
         renderType: Text.NativeRendering
-        color: Qt.darker(Color.foreground, 1.3)
+        color: ThemeStyle.textSecondary(Color)
         elide: Text.ElideRight
         Layout.fillWidth: true
       }
@@ -79,11 +88,11 @@ Rectangle {
       Text {
         text: "Errors: Write " + (device.write_errs || 0) + " · Read " + (device.read_errs || 0) + " · Corruption " + (device.corruption_errs || 0)
         font.family: Style.font.family
-        font.pixelSize: Style.font.caption * 0.9
+        font.pixelSize: ThemeStyle.fontSize("captionSmall")
         renderType: Text.NativeRendering
         color: (device.write_errs > 0 || device.read_errs > 0 || device.corruption_errs > 0)
           ? Color.urgent
-          : Qt.darker(Color.foreground, 1.6)
+          : ThemeStyle.textMuted(Color)
         visible: (device.write_errs > 0 || device.read_errs > 0 || device.corruption_errs > 0)
       }
     }
@@ -93,37 +102,29 @@ Rectangle {
       Layout.alignment: Qt.AlignVCenter
       implicitWidth: smartText.implicitWidth + Style.space(12)
       implicitHeight: smartText.implicitHeight + Style.space(6)
-      radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 4) : 4
-      color: {
-        if (device.missing) return Qt.rgba(0.9, 0.2, 0.2, 0.15)
-        if (device.smart_status === "failing") return Qt.rgba(0.9, 0.2, 0.2, 0.15)
-        if (device.smart_status === "warning") return Qt.rgba(0.95, 0.6, 0.1, 0.15)
-        if (device.smart_status === "passed") return Qt.rgba(0.2, 0.8, 0.3, 0.15)
-        return Qt.rgba(0.5, 0.5, 0.5, 0.15)
+      radius: ThemeStyle.radiusFor("badge", Style.cornerRadius)
+
+      readonly property string smartState: {
+        if (device.missing) return "missing"
+        if (device.smart_status === "failing") return "failing"
+        if (device.smart_status === "warning") return "warning"
+        if (device.smart_status === "passed") return "passed"
+        return "muted"
       }
-      border.color: {
-        if (device.missing) return Color.urgent
-        if (device.smart_status === "failing") return Color.urgent
-        if (device.smart_status === "warning") return Color.warning
-        if (device.smart_status === "passed") return Color.accent
-        return Color.muted
-      }
-      border.width: 1
+      readonly property var badgeToken: ThemeStyle.badgeStyle(Color, smartState)
+
+      color: badgeToken.background
+      border.color: badgeToken.border
+      border.width: badgeToken.borderWidth
 
       Text {
         id: smartText
         anchors.centerIn: parent
         font.family: Style.font.family
-        font.pixelSize: Style.font.caption * 0.9
+        font.pixelSize: ThemeStyle.fontSize("captionSmall")
         font.bold: true
         renderType: Text.NativeRendering
-        color: {
-          if (device.missing) return Color.urgent
-          if (device.smart_status === "failing") return Color.urgent
-          if (device.smart_status === "warning") return Color.warning
-          if (device.smart_status === "passed") return Color.accent
-          return Qt.darker(Color.foreground, 1.4)
-        }
+        color: parent.badgeToken.text
         text: {
           if (device.missing) return "MISSING"
           if (device.smart_status === "failing") return "SMART FAILING"

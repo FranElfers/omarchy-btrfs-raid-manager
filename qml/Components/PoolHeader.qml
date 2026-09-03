@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import qs.Commons
 import qs.Ui as Ui
 import "../Format.js" as Format
+import "../ThemeStyle.js" as ThemeStyle
 
 ColumnLayout {
   id: root
@@ -20,16 +21,16 @@ ColumnLayout {
 
     // Health Icon
     Image {
-      Layout.preferredWidth: Style.space(26)
-      Layout.preferredHeight: Style.space(26)
+      Layout.preferredWidth: ThemeStyle.iconSize("header")
+      Layout.preferredHeight: ThemeStyle.iconSize("header")
       source: {
         if (!pool.status) return Qt.resolvedUrl("../../assets/icon-pool-healthy.svg")
         if (pool.status === "degraded") return Qt.resolvedUrl("../../assets/icon-pool-degraded.svg")
         if (pool.status === "working") return Qt.resolvedUrl("../../assets/icon-pool-working.svg")
         return Qt.resolvedUrl("../../assets/icon-pool-healthy.svg")
       }
-      sourceSize.width: Style.space(26)
-      sourceSize.height: Style.space(26)
+      sourceSize.width: ThemeStyle.iconSize("header")
+      sourceSize.height: ThemeStyle.iconSize("header")
     }
 
     // Pool name and profile
@@ -43,7 +44,7 @@ ColumnLayout {
         Text {
           text: pool.label || "Storage Pool"
           font.family: Style.font.family
-          font.pixelSize: Style.font.title
+          font.pixelSize: ThemeStyle.fontSize("title")
           font.bold: true
           renderType: Text.NativeRendering
           color: Color.foreground
@@ -51,19 +52,20 @@ ColumnLayout {
 
         // RAID Profile tag
         Rectangle {
+          readonly property var tagToken: ThemeStyle.badgeStyle(Color, "passed")
           implicitWidth: profileText.implicitWidth + Style.space(8)
           implicitHeight: profileText.implicitHeight + Style.space(4)
-          radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 4) : 4
-          color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.08)
-          border.color: Color.muted
-          border.width: 1
+          radius: ThemeStyle.radiusFor("badge", Style.cornerRadius)
+          color: tagToken.background
+          border.color: tagToken.border
+          border.width: tagToken.borderWidth
 
           Text {
             id: profileText
             anchors.centerIn: parent
             text: pool.raid_profile || "RAID1"
             font.family: Style.font.family
-            font.pixelSize: Style.font.caption * 0.85
+            font.pixelSize: ThemeStyle.fontSize("captionSmall")
             font.bold: true
             renderType: Text.NativeRendering
             color: Color.accent
@@ -74,9 +76,9 @@ ColumnLayout {
       Text {
         text: (pool.is_mounted ? pool.mountpoint : "Not mounted") + " · " + (pool.uuid ? pool.uuid.substring(0, 8) + "…" : "")
         font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        font.pixelSize: ThemeStyle.fontSize("caption")
         renderType: Text.NativeRendering
-        color: Qt.darker(Color.foreground, 1.4)
+        color: ThemeStyle.textSecondary(Color)
         elide: Text.ElideMiddle
         Layout.fillWidth: true
       }
@@ -97,15 +99,17 @@ ColumnLayout {
     Layout.fillWidth: true
     spacing: Style.space(4)
 
+    readonly property var gaugeToken: ThemeStyle.progressGaugeStyle(Color, pool.percent_used, false)
+
     RowLayout {
       Layout.fillWidth: true
 
       Text {
         text: "Capacity"
         font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        font.pixelSize: ThemeStyle.fontSize("caption")
         renderType: Text.NativeRendering
-        color: Qt.darker(Color.foreground, 1.3)
+        color: ThemeStyle.textSecondary(Color)
       }
 
       Item { Layout.fillWidth: true }
@@ -113,7 +117,7 @@ ColumnLayout {
       Text {
         text: Format.formatBytes(pool.used_bytes) + " used of " + Format.formatBytes(pool.total_bytes) + " (" + Format.formatPercent(pool.percent_used) + ")"
         font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        font.pixelSize: ThemeStyle.fontSize("caption")
         renderType: Text.NativeRendering
         color: Color.foreground
       }
@@ -123,18 +127,14 @@ ColumnLayout {
     Rectangle {
       Layout.fillWidth: true
       height: Style.space(8)
-      radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 4) : 4
-      color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.1)
+      radius: ThemeStyle.radiusFor("gauge", Style.cornerRadius)
+      color: root.gaugeToken.trackColor
 
       Rectangle {
         height: parent.height
         width: Math.min(parent.width, Math.max(0, parent.width * ((pool.percent_used || 0) / 100.0)))
-        radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 4) : 4
-        color: {
-          if (pool.percent_used > 90) return Color.urgent
-          if (pool.percent_used > 75) return Color.warning
-          return Color.accent
-        }
+        radius: ThemeStyle.radiusFor("gauge", Style.cornerRadius)
+        color: root.gaugeToken.fillColor
       }
     }
 
@@ -144,9 +144,9 @@ ColumnLayout {
       Text {
         text: "Free (estimated): " + Format.formatBytes(pool.free_bytes)
         font.family: Style.font.family
-        font.pixelSize: Style.font.caption * 0.9
+        font.pixelSize: ThemeStyle.fontSize("captionSmall")
         renderType: Text.NativeRendering
-        color: Qt.darker(Color.foreground, 1.4)
+        color: ThemeStyle.textSecondary(Color)
       }
     }
   }

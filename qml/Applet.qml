@@ -5,6 +5,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui as Ui
 import "Format.js" as Format
+import "ThemeStyle.js" as ThemeStyle
 
 Item {
   id: root
@@ -259,16 +260,13 @@ Item {
     id: bg
     anchors.fill: parent
     anchors.margins: Style.space(2)
-    radius: Style.cornerRadius > 0 ? Style.cornerRadius : 4
-    color: {
-      if (root.opened) {
-        return root.bar ? Style.selectedFillFor(root.bar.foreground, Color.accent) : Qt.rgba(1, 1, 1, 0.12)
-      }
-      if (mouseArea.containsMouse) {
-        return root.bar ? Style.hoverFillFor(root.bar.foreground, Color.accent) : Qt.rgba(1, 1, 1, 0.06)
-      }
-      return "transparent"
-    }
+    radius: ThemeStyle.radiusFor("pill", Style.cornerRadius)
+    color: ThemeStyle.interactiveBackground(
+      root.bar || Color,
+      mouseArea.containsMouse,
+      root.opened,
+      root.isAttentionNeeded
+    )
     Behavior on color { ColorAnimation { duration: 150 } }
   }
 
@@ -315,7 +313,7 @@ Item {
       text: root.badgeText
       color: root.textColor
       font.family: root.bar ? root.bar.fontFamily : Style.font.family
-      font.pixelSize: 11
+      font.pixelSize: ThemeStyle.fontSize("bodySmall")
       renderType: Text.NativeRendering
       verticalAlignment: Text.AlignVCenter
     }

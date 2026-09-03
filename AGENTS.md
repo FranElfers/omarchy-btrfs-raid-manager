@@ -61,3 +61,12 @@ go test -v -race ./...
     - Use `sourceSize: Qt.size(16, 16)` to guarantee crisp vector rasterization on high-DPI displays.
 - **Flyout Sizing & Bounding:** Never hardcode fixed window `height` in `Flyout.qml`. Root height must strictly track `contentLayout.implicitHeight` plus outer padding (or wrap inside a `Flickable`/`ScrollView`) so bottom sections like "Automated Maintenance" are never clipped.
 - **Layout Isolation:** Keep the collapsed bar widget simple. Never mix manual anchors (`anchors.centerIn`, `anchors.left`) with `RowLayout`/`ColumnLayout`, and never render multiple competing text nodes in the bar.
+
+---
+
+## Functional Styling & Design System Consistency
+
+- **Single Source of Truth for Styling:** Never define ad-hoc `radius`, inline border math, or hardcoded hex/rgba values inside individual QML components. All visual attributes must be derived from the centralized functional helper (`ThemeStyle.js` / `ThemeHelper`).
+- **Functional Token Composition:** Use pure functions that accept current interaction state flags (`hovered`, `active`, `urgent`) and return standardized theme values (e.g., background tints, border highlights, and standard corner radii).
+- **Strict Shape Consistency:** All interactive surfaces (buttons, toggles, badges, flyout cards, and tooltips) must conform strictly to the design system's radius scale. Disconnected square corners alongside rounded elements are strictly prohibited.
+- **Documentation Contract:** Any new UI helper or factory function added must be documented with parameter contracts in `docs/architecture.md` so subsequent agent iterations reuse them by default.

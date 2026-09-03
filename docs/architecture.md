@@ -147,3 +147,75 @@ Quickshell executes `raid-manager stream` through `Quickshell.Io.Process` and pa
 ```
 
 The top-bar widget binds dynamically to `Omarchy.Theme` tokens and updates instantly when disk topology or maintenance state shifts.
+
+---
+
+## 6. Functional Styling & UI Design System (`ThemeStyle.js`)
+
+To enforce strict visual consistency, shape homogeneity, and maintainable theme binding, all QML components consume styling tokens and computed property objects exclusively through `qml/ThemeStyle.js` (`import "ThemeStyle.js" as ThemeStyle` or `import "../ThemeStyle.js" as ThemeStyle`).
+
+Individual components must never perform ad-hoc color calculations (`Qt.rgba(...)`, `Qt.darker(...)`), inline border math, or divergent ternary radius checks (`Style.cornerRadius > 0 ? ... : ...`).
+
+### 6.1 Radius Scale & Strict Shape Consistency
+
+The `radiusFor(elementType, baseRadius)` function maps component roles to proportional corner radii derived from `Style.cornerRadius` (or an explicit theme object / numeric radius).
+
+```javascript
+radiusFor(elementType, baseRadius)
+```
+
+- **Zero-Rounding Invariant:** If `baseRadius <= 0` (e.g. Hyprland configured with sharp square corners), `radiusFor` strictly returns `0` for all element types, preventing disconnected rounded elements in sharp themes.
+- **Proportional Clamping Hierarchy:**
+  * `"card"`, `"dialog"`, `"row"`: `Math.min(base, 8)`
+  * `"button"`, `"input"`, `"textfield"`: `Math.min(base, 6)`
+  * `"badge"`, `"tag"`, `"tooltip"`: `Math.min(base, 4)`
+  * `"gauge"`, `"track"`, `"progress"`: `Math.min(base, 3)`
+  * `"pill"`: `Math.max(base, 12)`
+  * default: `base`
+
+### 6.2 API Reference & Parameter Contracts
+
+#### Theme & Color Utilities
+
+* `resolveTheme(theme)`: Normalizes `theme` (accepts `Color`, `bar`, or a custom theme dict) into `{ foreground, background, accent, urgent, muted, warning, cornerRadius }`.
+* `colorWithAlpha(color, alpha)`: Safely parses any Qt color or string and returns `Qt.rgba(r, g, b, alpha)` clamped between `0.0` and `1.0`.
+* `textSecondary(theme)`: Returns secondary text color at 70% opacity.
+* `textMuted(theme)`: Returns muted text color at 48% opacity.
+* `warningColor(theme)`: Resolves the semantic warning palette color.
+
+#### Interactive State Evaluation
+
+* `interactiveBackground(theme, isHovered, isActive, isUrgent)`: Returns standard background fills for interactive surfaces based on priority (urgent active > urgent hover > urgent > active > hover > transparent).
+* `interactiveBorder(theme, isHovered, isActive, isUrgent)`: Returns corresponding border colors (urgent > active > hover highlight > muted border).
+
+#### Composite Style Objects
+
+* `cardStyle(theme, isHovered, isActive, isUrgent)`:
+  Returns `{ background: color, border: color, borderWidth: int, radius: int }` for container cards (`DiskRow`, add-disk dialog).
+* `buttonStyle(theme, isHovered, isActive, isUrgent, isPressed)`:
+  Returns `{ background: color, border: color, borderWidth: int, foreground: color, radius: int }` for interactive buttons.
+* `badgeStyle(theme, status)`:
+  Returns `{ background: color, border: color, borderWidth: int, text: color, radius: int }` for status tags (`"missing"`, `"failing"`, `"warning"`, `"passed"`, `"working"`, `"muted"`).
+* `tooltipStyle(theme)`:
+  Returns `{ background: color, border: color, borderWidth: int, text: color, radius: int, fontSize: int }` for flyout tooltip overlays.
+* `progressGaugeStyle(theme, percent, isUrgent)`:
+  Returns `{ trackColor: color, fillColor: color, radius: int }` for capacity and maintenance progress bars.
+
+#### Typography & Sizing Helpers
+
+* `fontSize(token)`: Standardized type ramp:
+  * `"captionSmall"`: 9px (or `caption * 0.85`)
+  * `"caption"`: 10px (`Style.font.caption`)
+  * `"bodySmall"`: 11px (`Style.font.bodySmall`)
+  * `"body"`: 12px (`Style.font.body`)
+  * `"subtitle"`: 13px (`Style.font.subtitle`)
+  * `"title"`: 14px (`Style.font.title`)
+  * `"heading"`: 16px (`Style.font.heading`)
+  * `"display"`: 24px (`Style.font.display`)
+* `iconSize(token)`: Standard icon dimensions (`"small"`: 14, `"bar"`: 16, `"row"`: 24, `"header"`: 26, `"large"`: 32).
+* `paddingFor(role)`: Standard padding structures (`"control"`, `"card"`, `"badge"`, `"flyout"`).
+
+### 6.3 Tooltip Uniformity (`StyledToolTip.qml`)
+
+To eliminate native unstyled Qt ToolTips and inconsistent square tooltips previously inherited from `Ui.Button`, all flyout controls (`ActionButton`, `ToggleSwitch`) use `qml/Components/StyledToolTip.qml` or bind directly to `ThemeStyle.tooltipStyle(Color)`. This guarantees uniform theme background, subtle border, theme text color, and consistent corner rounding matching `radiusFor("tooltip")`.
+

@@ -1,7 +1,7 @@
 import QtQuick
-import QtQuick.Controls
 import qs.Commons
 import qs.Ui as Ui
+import "../ThemeStyle.js" as ThemeStyle
 
 Item {
   id: root
@@ -23,11 +23,17 @@ Item {
     id: btn
     anchors.fill: parent
     text: root.text
-    tooltipText: root.tooltipText
+    tooltipText: "" // Delegate to StyledToolTip for consistent theme-styled overlay and radius
     enabled: root.enabled
     active: root.active
-    accent: root.accent
+    accent: root.destructive ? Color.urgent : root.accent
     foreground: root.destructive ? Color.urgent : root.foreground
+    radius: ThemeStyle.radiusFor("button", Style.cornerRadius)
     onClicked: root.clicked()
+  }
+
+  StyledToolTip {
+    visible: root.tooltipText !== "" && btn.hot
+    text: root.tooltipText
   }
 }

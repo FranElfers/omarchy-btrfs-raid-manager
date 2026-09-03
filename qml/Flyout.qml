@@ -7,6 +7,7 @@ import qs.Commons
 import qs.Ui as Ui
 import "Components"
 import "Format.js" as Format
+import "ThemeStyle.js" as ThemeStyle
 
 Ui.Panel {
   id: root
@@ -112,226 +113,227 @@ Ui.Panel {
           }
         }
 
-      // Add Disk Dialog inline
-      Rectangle {
-        Layout.fillWidth: true
-        visible: root.addDiskOpen
-        implicitHeight: addColumn.implicitHeight + Style.space(16)
-        radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 6) : 6
-        color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.05)
-        border.color: Color.accent
-        border.width: 1
+        // Add Disk Dialog inline
+        Rectangle {
+          Layout.fillWidth: true
+          visible: root.addDiskOpen
+          implicitHeight: addColumn.implicitHeight + Style.space(16)
+          readonly property var addCardToken: ThemeStyle.cardStyle(Color, false, true, false)
+          radius: ThemeStyle.radiusFor("card", Style.cornerRadius)
+          color: addCardToken.background
+          border.color: addCardToken.border
+          border.width: addCardToken.borderWidth
 
-        ColumnLayout {
-          id: addColumn
-          anchors.fill: parent
-          anchors.margins: Style.space(8)
-          spacing: Style.space(8)
-
-          Text {
-            text: "Add Device to Pool (requires Polkit)"
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            renderType: Text.NativeRendering
-            color: Color.foreground
-          }
-
-          RowLayout {
-            Layout.fillWidth: true
+          ColumnLayout {
+            id: addColumn
+            anchors.fill: parent
+            anchors.margins: Style.space(8)
             spacing: Style.space(8)
 
-            Ui.TextField {
-              id: devInput
-              Layout.fillWidth: true
-              placeholderText: "/dev/sdd1"
-              text: root.newDevicePath
-              onTextChanged: root.newDevicePath = text
+            Text {
+              text: "Add Device to Pool (requires Polkit)"
+              font.family: Style.font.family
+              font.pixelSize: ThemeStyle.fontSize("caption")
+              font.bold: true
+              renderType: Text.NativeRendering
+              color: Color.foreground
             }
 
-            ActionButton {
-              text: "Add"
-              enabled: root.newDevicePath.trim() !== ""
-              tooltipText: "Execute btrfs device add on " + root.newDevicePath
-              onClicked: {
-                if (root.newDevicePath.trim() !== "" && root.pool.mountpoint) {
-                  root.runAdmin(["add", root.newDevicePath.trim(), root.pool.mountpoint])
-                  root.addDiskOpen = false
-                  root.newDevicePath = ""
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: Style.space(8)
+
+              Ui.TextField {
+                id: devInput
+                Layout.fillWidth: true
+                placeholderText: "/dev/sdd1"
+                text: root.newDevicePath
+                onTextChanged: root.newDevicePath = text
+              }
+
+              ActionButton {
+                text: "Add"
+                enabled: root.newDevicePath.trim() !== ""
+                tooltipText: "Execute btrfs device add on " + root.newDevicePath
+                onClicked: {
+                  if (root.newDevicePath.trim() !== "" && root.pool.mountpoint) {
+                    root.runAdmin(["add", root.newDevicePath.trim(), root.pool.mountpoint])
+                    root.addDiskOpen = false
+                    root.newDevicePath = ""
+                  }
                 }
               }
             }
           }
         }
-      }
 
-      // Disk list
-      ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Style.space(6)
+        // Disk list
+        ColumnLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(6)
 
-        Repeater {
-          model: root.pool.devices || []
+          Repeater {
+            model: root.pool.devices || []
 
-          DiskRow {
-            Layout.fillWidth: true
-            device: modelData
-            mountpoint: root.pool.mountpoint || ""
-            onRemoveRequested: function(devNode) {
-              if (root.pool.mountpoint) {
-                root.runAdmin(["remove", devNode, root.pool.mountpoint])
+            DiskRow {
+              Layout.fillWidth: true
+              device: modelData
+              mountpoint: root.pool.mountpoint || ""
+              onRemoveRequested: function(devNode) {
+                if (root.pool.mountpoint) {
+                  root.runAdmin(["remove", devNode, root.pool.mountpoint])
+                }
               }
             }
           }
         }
-      }
 
-      Ui.PanelSeparator { Layout.fillWidth: true }
+        Ui.PanelSeparator { Layout.fillWidth: true }
 
-      // Section 3: Maintenance Bar
-      Ui.PanelSectionHeader {
-        text: "Maintenance & Health"
-        Layout.fillWidth: true
-      }
-
-      RowLayout {
-        Layout.fillWidth: true
-        spacing: Style.space(10)
-
-        ActionButton {
+        // Section 3: Maintenance Bar
+        Ui.PanelSectionHeader {
+          text: "Maintenance & Health"
           Layout.fillWidth: true
-          text: (root.pool.scrub && root.pool.scrub.active) ? "Cancel Scrub" : "Scrub Pool"
-          active: Boolean(root.pool.scrub && root.pool.scrub.active)
-          destructive: Boolean(root.pool.scrub && root.pool.scrub.active)
-          tooltipText: (root.pool.scrub && root.pool.scrub.active)
-            ? "Cancel the active background checksum verification and repair scrub"
-            : "Verify data and metadata checksums across all RAID disks to detect and repair silent data corruption"
-          onClicked: {
-            if (root.pool.mountpoint) {
-              var act = (root.pool.scrub && root.pool.scrub.active) ? "cancel" : "start"
-              root.runAdmin(["scrub", act, root.pool.mountpoint])
-            }
-          }
         }
-
-        ActionButton {
-          Layout.fillWidth: true
-          text: (root.pool.balance && root.pool.balance.active) ? "Cancel Balance" : "Balance Pool"
-          active: Boolean(root.pool.balance && root.pool.balance.active)
-          destructive: Boolean(root.pool.balance && root.pool.balance.active)
-          tooltipText: (root.pool.balance && root.pool.balance.active)
-            ? "Cancel the active background chunk reallocation and balance"
-            : "Compact block groups and reallocate data chunks across disks to reclaim unused storage capacity"
-          onClicked: {
-            if (root.pool.mountpoint) {
-              var act = (root.pool.balance && root.pool.balance.active) ? "cancel" : "start"
-              root.runAdmin(["balance", act, root.pool.mountpoint])
-            }
-          }
-        }
-      }
-
-      // Active operation status display
-      ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Style.space(4)
-        visible: Boolean((root.pool.scrub && root.pool.scrub.active) || (root.pool.balance && root.pool.balance.active))
 
         RowLayout {
           Layout.fillWidth: true
+          spacing: Style.space(10)
 
-          Text {
-            text: {
-              if (root.pool.scrub && root.pool.scrub.active) {
-                return "Scrubbing: " + Format.formatPercent(root.pool.scrub.progress_percent)
+          ActionButton {
+            Layout.fillWidth: true
+            text: (root.pool.scrub && root.pool.scrub.active) ? "Cancel Scrub" : "Scrub Pool"
+            active: Boolean(root.pool.scrub && root.pool.scrub.active)
+            destructive: Boolean(root.pool.scrub && root.pool.scrub.active)
+            tooltipText: (root.pool.scrub && root.pool.scrub.active)
+              ? "Cancel the active background checksum verification and repair scrub"
+              : "Verify data and metadata checksums across all RAID disks to detect and repair silent data corruption"
+            onClicked: {
+              if (root.pool.mountpoint) {
+                var act = (root.pool.scrub && root.pool.scrub.active) ? "cancel" : "start"
+                root.runAdmin(["scrub", act, root.pool.mountpoint])
               }
-              if (root.pool.balance && root.pool.balance.active) {
-                return "Balancing: " + Format.formatPercent(root.pool.balance.progress_percent)
-              }
-              return ""
             }
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            renderType: Text.NativeRendering
-            color: Color.accent
           }
 
-          Item { Layout.fillWidth: true }
-
-          Text {
-            text: (root.pool.scrub && root.pool.scrub.active) ? ("Errors: " + (root.pool.scrub.errors || 0)) : ""
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            renderType: Text.NativeRendering
-            color: (root.pool.scrub && root.pool.scrub.errors > 0) ? Color.urgent : Color.foreground
+          ActionButton {
+            Layout.fillWidth: true
+            text: (root.pool.balance && root.pool.balance.active) ? "Cancel Balance" : "Balance Pool"
+            active: Boolean(root.pool.balance && root.pool.balance.active)
+            destructive: Boolean(root.pool.balance && root.pool.balance.active)
+            tooltipText: (root.pool.balance && root.pool.balance.active)
+              ? "Cancel the active background chunk reallocation and balance"
+              : "Compact block groups and reallocate data chunks across disks to reclaim unused storage capacity"
+            onClicked: {
+              if (root.pool.mountpoint) {
+                var act = (root.pool.balance && root.pool.balance.active) ? "cancel" : "start"
+                root.runAdmin(["balance", act, root.pool.mountpoint])
+              }
+            }
           }
         }
 
-        Rectangle {
-          Layout.fillWidth: true
-          height: Style.space(6)
-          radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 3) : 3
-          color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.1)
-
-          Rectangle {
-            height: parent.height
-            width: {
-              var p = 0
-              if (root.pool.scrub && root.pool.scrub.active) p = root.pool.scrub.progress_percent || 0
-              else if (root.pool.balance && root.pool.balance.active) p = root.pool.balance.progress_percent || 0
-              return Math.min(parent.width, Math.max(0, parent.width * (p / 100.0)))
-            }
-            radius: Style.cornerRadius > 0 ? Math.min(Style.cornerRadius, 3) : 3
-            color: Color.accent
-          }
-        }
-      }
-
-      // Automated schedule switch
-      RowLayout {
-        Layout.fillWidth: true
-        spacing: Style.space(8)
-
+        // Active operation status display
         ColumnLayout {
           Layout.fillWidth: true
-          spacing: Style.space(1)
+          spacing: Style.space(4)
+          visible: Boolean((root.pool.scrub && root.pool.scrub.active) || (root.pool.balance && root.pool.balance.active))
 
-          Text {
-            text: "Automated Maintenance"
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            renderType: Text.NativeRendering
-            color: Color.foreground
+          RowLayout {
+            Layout.fillWidth: true
+
+            Text {
+              text: {
+                if (root.pool.scrub && root.pool.scrub.active) {
+                  return "Scrubbing: " + Format.formatPercent(root.pool.scrub.progress_percent)
+                }
+                if (root.pool.balance && root.pool.balance.active) {
+                  return "Balancing: " + Format.formatPercent(root.pool.balance.progress_percent)
+                }
+                return ""
+              }
+              font.family: Style.font.family
+              font.pixelSize: ThemeStyle.fontSize("caption")
+              font.bold: true
+              renderType: Text.NativeRendering
+              color: Color.accent
+            }
+
+            Item { Layout.fillWidth: true }
+
+            Text {
+              text: (root.pool.scrub && root.pool.scrub.active) ? ("Errors: " + (root.pool.scrub.errors || 0)) : ""
+              font.family: Style.font.family
+              font.pixelSize: ThemeStyle.fontSize("caption")
+              renderType: Text.NativeRendering
+              color: (root.pool.scrub && root.pool.scrub.errors > 0) ? Color.urgent : Color.foreground
+            }
           }
 
-          Text {
-            text: "Monthly scrub and weekly balance systemd timers"
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption * 0.85
-            renderType: Text.NativeRendering
-            color: Qt.darker(Color.foreground, 1.4)
+          Rectangle {
+            Layout.fillWidth: true
+            height: Style.space(6)
+            radius: ThemeStyle.radiusFor("gauge", Style.cornerRadius)
+            color: ThemeStyle.colorWithAlpha(Color.foreground, 0.1)
+
+            Rectangle {
+              height: parent.height
+              width: {
+                var p = 0
+                if (root.pool.scrub && root.pool.scrub.active) p = root.pool.scrub.progress_percent || 0
+                else if (root.pool.balance && root.pool.balance.active) p = root.pool.balance.progress_percent || 0
+                return Math.min(parent.width, Math.max(0, parent.width * (p / 100.0)))
+              }
+              radius: ThemeStyle.radiusFor("gauge", Style.cornerRadius)
+              color: Color.accent
+            }
           }
         }
 
-        Ui.ToggleSwitch {
-          id: maintenanceSwitch
-          checked: Boolean((root.pool.scrub && root.pool.scrub.timer_enabled) || (root.pool.balance && root.pool.balance.timer_enabled))
-          onToggled: {
-            if (!root.pool.mountpoint) return
-            var act = checked ? "enable" : "disable"
-            root.runAdmin(["timer", act, root.pool.mountpoint, "scrub"])
-            root.runAdmin(["timer", act, root.pool.mountpoint, "balance"])
+        // Automated schedule switch
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(8)
+
+          ColumnLayout {
+            Layout.fillWidth: true
+            spacing: Style.space(1)
+
+            Text {
+              text: "Automated Maintenance"
+              font.family: Style.font.family
+              font.pixelSize: ThemeStyle.fontSize("caption")
+              font.bold: true
+              renderType: Text.NativeRendering
+              color: Color.foreground
+            }
+
+            Text {
+              text: "Monthly scrub and weekly balance systemd timers"
+              font.family: Style.font.family
+              font.pixelSize: ThemeStyle.fontSize("captionSmall")
+              renderType: Text.NativeRendering
+              color: ThemeStyle.textSecondary(Color)
+            }
           }
 
-          Ui.PanelToolTip {
-            visible: maintenanceSwitch.containsMouse
-            text: "Enable or disable parametric systemd timers (btrpool-scrub@.timer and btrpool-balance@.timer) for scheduled monthly scrubs and weekly balance routines"
+          Ui.ToggleSwitch {
+            id: maintenanceSwitch
+            checked: Boolean((root.pool.scrub && root.pool.scrub.timer_enabled) || (root.pool.balance && root.pool.balance.timer_enabled))
+            onToggled: {
+              if (!root.pool.mountpoint) return
+              var act = checked ? "enable" : "disable"
+              root.runAdmin(["timer", act, root.pool.mountpoint, "scrub"])
+              root.runAdmin(["timer", act, root.pool.mountpoint, "balance"])
+            }
+
+            StyledToolTip {
+              visible: maintenanceSwitch.containsMouse
+              text: "Enable or disable parametric systemd timers (btrpool-scrub@.timer and btrpool-balance@.timer) for scheduled monthly scrubs and weekly balance routines"
+            }
           }
         }
       }
     }
   }
-}
 }

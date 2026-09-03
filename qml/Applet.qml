@@ -15,15 +15,28 @@ Item {
   property var settings: ({})
 
   readonly property bool vertical: bar ? bar.vertical === true : false
-  readonly property real padding: 5
+  readonly property real padding: Style.space(6)
   readonly property int iconSize: bar ? Math.max(14, Math.round(bar.barSize * 0.6)) : 16
 
   implicitHeight: bar ? bar.barSize : 26
-  implicitWidth: bar && bar.vertical ? (bar.barSize || 28) : (contentLayout.implicitWidth + (padding * 2))
+  implicitWidth: bar && bar.vertical ? (bar.barSize || 28) : Math.ceil(contentRow.implicitWidth + (padding * 2))
 
   // Parsed state from resident daemon
   property var pools: []
-  readonly property var primaryPool: pools.length > 0 ? pools[0] : null
+  readonly property var primaryPool: {
+    if (!pools || pools.length === 0) return null
+    for (var i = 0; i < pools.length; i++) {
+      if (pools[i] && (pools[i].is_degraded || pools[i].status === "degraded")) {
+        return pools[i]
+      }
+    }
+    for (var j = 0; j < pools.length; j++) {
+      if (pools[j] && (pools[j].status === "working" || (pools[j].scrub && pools[j].scrub.active) || (pools[j].balance && pools[j].balance.active))) {
+        return pools[j]
+      }
+    }
+    return pools[0]
+  }
 
   readonly property string poolStatus: primaryPool ? (primaryPool.status || "healthy") : "healthy"
   readonly property bool isDegraded: primaryPool ? (primaryPool.is_degraded === true) : false
@@ -221,17 +234,17 @@ Item {
     Behavior on color { ColorAnimation { duration: 150 } }
   }
 
-  // 5. Internal Layout (proportional icons, compact spacing, native typography)
-  RowLayout {
-    id: contentLayout
+  // 5. Clean horizontal flow: single icon followed by single text label
+  Row {
+    id: contentRow
     anchors.centerIn: parent
-    spacing: 4
+    spacing: Style.space(5)
 
     Image {
       id: iconImg
-      Layout.alignment: Qt.AlignVCenter
-      Layout.preferredWidth: root.iconSize
-      Layout.preferredHeight: root.iconSize
+      width: root.iconSize
+      height: root.iconSize
+      anchors.verticalCenter: parent.verticalCenter
       source: root.statusIcon
       sourceSize: Qt.size(root.iconSize, root.iconSize)
       fillMode: Image.PreserveAspectFit
@@ -248,7 +261,8 @@ Item {
 
     Text {
       id: labelText
-      Layout.alignment: Qt.AlignVCenter
+      textFormat: Text.PlainText
+      anchors.verticalCenter: parent.verticalCenter
       visible: !root.vertical && root.badgeText !== ""
       text: root.badgeText
       color: root.textColor

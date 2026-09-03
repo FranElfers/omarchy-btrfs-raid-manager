@@ -1,8 +1,8 @@
-# omarchy-btrfs-raid-manager: Architecture & Dataflow
+# omarchy-btrfs-raid-manager: Architecture and Dataflow
 
-## 1. System Architecture Overview
+## 1. System Overview
 
-`omarchy-btrfs-raid-manager` is engineered as a lightweight, zero-polling, event-driven top-bar applet and administrative utility for Omarchy. It provides instant visibility into Btrfs RAID1 pool health, real storage capacity, and disk telemetry without spawning short-lived background polling commands or consuming unnecessary CPU cycles.
+`omarchy-btrfs-raid-manager` is a top-bar applet and administration tool for Omarchy. It monitors Btrfs RAID1 storage pools without periodic polling. The applet displays pool health, disk capacity, and device telemetry while saving CPU cycles.
 
 ```mermaid
 graph TD
@@ -40,54 +40,53 @@ graph TD
 
 ---
 
-## 2. Event-Driven Reactivity & Zero-Polling
+## 2. Event-Driven Design
 
-Traditional desktop monitoring applets often rely on periodic shell scripts running commands like `btrfs fi usage` or `df` every few seconds. This creates process fork churn, increases wakeups on battery power, and introduces visual latency between operations.
+Traditional applets run commands like `btrfs fi usage` or `df` on a timer. This wastes CPU cycles, drains battery, and delays UI updates.
 
-`omarchy-btrfs-raid-manager` eliminates periodic polling through a hybrid event-driven model:
+`omarchy-btrfs-raid-manager` uses an event-driven model instead:
 
-1. **Kernel Sysfs Direct Reading**:
-   Telemetry regarding disk usage, allocation chunk profiles (`raid1`, `single`), and device error counters (`write_errs`, `read_errs`, `corruption_errs`) are read directly from `/sys/fs/btrfs/<uuid>/` with zero process execution overhead.
-2. **D-Bus Signal Subscriptions**:
-   The resident `raid-manager stream` daemon subscribes to:
-   - `org.freedesktop.UDisks2`: `org.freedesktop.DBus.PropertiesChanged` and `org.freedesktop.DBus.ObjectManager` signals to detect drive insertions, unmounts, mountpoint updates, and SMART status changes.
-   - `org.freedesktop.systemd1.Manager`: Unit lifecycle signals (`JobNew`, `JobRemoved`, `UnitNew`, `UnitRemoved`) to detect when maintenance tasks start, finish, or change state.
-3. **Debounced Flush**:
-   Rapid signal bursts on the bus (e.g. mounting with multiple partition signals) are automatically debounced across a 200ms sliding window, ensuring only cohesive, consolidated state updates are emitted to stdout.
-4. **Adaptive Operation Ticking**:
-   Only while an active background operation (such as scrub or balance) is running does the daemon enable a lightweight 2-second ticker to stream real-time progress percentages (`Scrub: 42%`). Once the operation finishes, the ticker immediately stops.
-
----
-
-## 3. Lifecycle & Orphan Process Prevention
-
-When developing plugins within Quickshell's dynamic reloading lifecycle, process management must be watertight to prevent stray daemons lingering on the system D-Bus.
-
-`raid-manager stream` ensures clean process termination through dual safeguards:
-* **Standard Input EOF Monitoring**:
-  Quickshell connects child process standard I/O via UNIX pipes. The resident daemon continuously monitors `os.Stdin` in a dedicated goroutine. As soon as Quickshell closes the pipe (on plugin reload, bar restart, or logout), an `io.EOF` is received, immediately triggering context cancellation and graceful bus disconnection.
-* **Signal Trapping & `SIGPIPE` Handling**:
-  The daemon traps `SIGINT`, `SIGTERM`, and `SIGPIPE`. If Quickshell closes its stdout consumer while the daemon writes an NDJSON update, the kernel sends `SIGPIPE` or write returns `EPIPE`, terminating the daemon without hanging.
+1. **Direct Kernel Sysfs Reads:**
+   The daemon reads storage usage, chunk profiles (`raid1`, `single`), and error counters (`write_errs`, `read_errs`, `corruption_errs`) directly from `/sys/fs/btrfs/<uuid>/`. It spawns no child processes for telemetry.
+2. **D-Bus Signal Subscriptions:**
+   The `raid-manager stream` daemon listens to two D-Bus sources:
+   - `org.freedesktop.UDisks2`: `PropertiesChanged` and `ObjectManager` signals report disk changes, mounts, unmounts, and SMART status.
+   - `org.freedesktop.systemd1.Manager`: Unit lifecycle signals (`JobNew`, `JobRemoved`, `UnitNew`, `UnitRemoved`) report maintenance task progress.
+3. **Debounced Updates:**
+   The daemon debounces rapid signal bursts across a 200 ms sliding window. It sends only consolidated updates to standard output.
+4. **Adaptive Ticking:**
+   During active maintenance (scrub or balance), the daemon starts a 2-second timer to report progress percentages. The timer stops immediately when the operation ends.
 
 ---
 
-## 4. Security Architecture & Minimal Polkit Footprint
+## 3. Process Lifecycle
 
-The project adheres to the principle of least privilege by refusing to introduce long-lived privileged daemons:
+Quickshell reloads plugins dynamically. To prevent orphaned processes, `raid-manager stream` uses two safeguards:
 
-* **Mount and Unmount**: Delegated entirely to standard UDisks2 D-Bus methods (`org.freedesktop.UDisks2.Filesystem.Mount` / `Unmount`). These rely on system-standard UDisks2 authorization rules without requiring custom root helpers.
-* **Maintenance Unit Lifecycles**: Scrub and balance services/timers are started, stopped, enabled, and disabled through `org.freedesktop.systemd1.Manager`, relying on systemd's built-in Polkit controls.
-* **Destructive Disk Operations**: Custom Polkit policy (`polkit/org.omarchy.btrfs.raidmanager.policy`) is strictly reserved for destructive storage mutations:
+- **Standard Input EOF:**
+  Quickshell connects child processes with UNIX pipes. The Go daemon monitors `os.Stdin` in a dedicated goroutine. When Quickshell closes standard input (on reload or logout), the daemon receives `io.EOF`, cancels its context, and exits.
+- **Signals and Broken Pipes:**
+  The daemon traps `SIGINT`, `SIGTERM`, and `SIGPIPE`. If standard output closes during a write, the daemon stops immediately without hanging.
+
+---
+
+## 4. Security and Authorization
+
+The project avoids long-lived root daemons and applies least privilege:
+
+- **Mount and Unmount:** UDisks2 methods (`org.freedesktop.UDisks2.Filesystem.Mount` and `Unmount`) handle mounts through standard system rules.
+- **Maintenance Tasks:** Systemd handles scrub and balance services and timers through native systemd Polkit rules.
+- **Destructive Operations:** Custom Polkit policy (`polkit/org.omarchy.btrfs.raidmanager.policy`) covers only destructive disk actions:
   - `org.omarchy.btrfs.raidmanager.device-add`
   - `org.omarchy.btrfs.raidmanager.device-remove`
   - `org.omarchy.btrfs.raidmanager.device-replace`
-  These actions are triggered on-demand as discrete short-lived CLI calls (`raid-manager admin ...`) which request elevation via `pkexec` when needed.
+  The UI calls short-lived CLI commands (`raid-manager admin ...`), which request root permissions through `pkexec` when needed.
 
 ---
 
-## 5. UI Integration & NDJSON Protocol
+## 5. UI Integration and NDJSON Protocol
 
-Quickshell executes `raid-manager stream` through `Quickshell.Io.Process` and parses lines using `SplitParser`. Each line is an independent JSON object:
+Quickshell runs `raid-manager stream` with `Quickshell.Io.Process` and parses output lines with `SplitParser`. Each line is an independent JSON object:
 
 ```json
 {
@@ -146,82 +145,88 @@ Quickshell executes `raid-manager stream` through `Quickshell.Io.Process` and pa
 }
 ```
 
-The top-bar widget binds dynamically to `Omarchy.Theme` tokens and updates instantly when disk topology or maintenance state shifts.
+The top-bar widget binds dynamically to `Omarchy.Theme` tokens and updates immediately when disk or maintenance state changes.
 
 ---
 
-## 6. Functional Styling & UI Design System (`ThemeStyle.js`)
+## 6. Functional Styling System (`ThemeStyle.js`)
 
-To enforce strict visual consistency, shape homogeneity, and maintainable theme binding, all QML components consume styling tokens and computed property objects exclusively through `qml/ThemeStyle.js` (`import "ThemeStyle.js" as ThemeStyle` or `import "../ThemeStyle.js" as ThemeStyle`).
+All QML components get styles and computed tokens from `qml/ThemeStyle.js` (`import "ThemeStyle.js" as ThemeStyle`).
 
-Individual components must never perform ad-hoc color calculations (`Qt.rgba(...)`, `Qt.darker(...)`), inline border math, or divergent ternary radius checks (`Style.cornerRadius > 0 ? ... : ...`).
+Components must not calculate colors, border math, or corner radii inline.
 
-### 6.1 Radius Scale & Strict Shape Consistency
+### 6.1 Radius Scale and Shape Rules
 
-The `radiusFor(elementType, baseRadius)` function maps component roles to proportional corner radii derived from `Style.cornerRadius` (or an explicit theme object / numeric radius).
+The function `radiusFor(elementType, baseRadius)` maps component roles to corner radii based on `Style.cornerRadius`:
 
 ```javascript
 radiusFor(elementType, baseRadius)
 ```
 
-- **Zero-Rounding Invariant:** If `baseRadius <= 0` (e.g. Hyprland configured with sharp square corners), `radiusFor` strictly returns `0` for all element types, preventing disconnected rounded elements in sharp themes.
-- **Proportional Clamping Hierarchy:**
-  * `"card"`, `"dialog"`, `"row"`: `Math.min(base, 8)`
-  * `"button"`, `"input"`, `"textfield"`, `"toggle"`, `"toggleRing"`: `Math.min(base, 6)`
-  * `"badge"`, `"tag"`, `"tooltip"`: `Math.min(base, 4)`
-  * `"gauge"`, `"track"`, `"progress"`: `Math.min(base, 3)`
-  * `"pill"`: `Math.max(base, 12)`
-  * default: `base`
+- **Zero-Rounding Rule:** If `baseRadius <= 0`, `radiusFor` returns `0` for all elements. This keeps sharp corners consistent.
+- **Radius Limits:**
+  - `"card"`, `"dialog"`, `"row"`: `Math.min(base, 8)`
+  - `"button"`, `"input"`, `"textfield"`, `"toggle"`, `"toggleRing"`: `Math.min(base, 6)`
+  - `"badge"`, `"tag"`, `"tooltip"`: `Math.min(base, 4)`
+  - `"gauge"`, `"track"`, `"progress"`: `Math.min(base, 3)`
+  - `"pill"`: `Math.max(base, 12)`
+  - default: `base`
 
-### 6.2 API Reference & Parameter Contracts
+### 6.2 API Reference
 
-#### Theme & Color Utilities
+#### Color Utilities
 
-* `resolveTheme(theme)`: Normalizes `theme` (accepts `Color`, `bar`, or a custom theme dict) into `{ foreground, background, accent, urgent, muted, warning, cornerRadius }`.
-* `colorWithAlpha(color, alpha)`: Safely parses any Qt color or string and returns `Qt.rgba(r, g, b, alpha)` clamped between `0.0` and `1.0`.
-* `textSecondary(theme)`: Returns secondary text color at 70% opacity.
-* `textMuted(theme)`: Returns muted text color at 48% opacity.
-* `warningColor(theme)`: Resolves the semantic warning palette color.
-* `diskIconColor(theme, isHovered, isUrgent, isWarning)`: Resolves semantic color for disk row icons (urgent > warning > hover accent > theme foreground).
-* `poolIconColor(theme, status)`: Resolves semantic color for pool health status icons (degraded/urgent > working accent > healthy accent).
+- `resolveTheme(theme)`: Normalizes `theme` into `{ foreground, background, accent, urgent, muted, warning, cornerRadius }`.
+- `colorWithAlpha(color, alpha)`: Parses any Qt color and returns `Qt.rgba(r, g, b, alpha)` clamped between `0.0` and `1.0`.
+- `textSecondary(theme)`: Returns secondary text color at 70% opacity.
+- `textMuted(theme)`: Returns muted text color at 48% opacity.
+- `warningColor(theme)`: Returns the semantic warning color.
+- `diskIconColor(theme, isHovered, isUrgent, isWarning)`: Returns disk row icon color (priority: urgent > warning > hover accent > foreground).
+- `poolIconColor(theme, status)`: Returns pool status icon color (priority: degraded/urgent > active accent > healthy accent).
 
-#### Interactive State Evaluation
+#### Interactive States
 
-* `interactiveBackground(theme, isHovered, isActive, isUrgent)`: Returns standard background fills for interactive surfaces based on priority (urgent active > urgent hover > urgent > active > hover > transparent).
-* `interactiveBorder(theme, isHovered, isActive, isUrgent)`: Returns corresponding border colors (urgent > active > hover highlight > muted border).
+- `interactiveBackground(theme, isHovered, isActive, isUrgent)`: Returns surface background fill by priority (urgent active > urgent hover > urgent > active > hover > transparent).
+- `interactiveBorder(theme, isHovered, isActive, isUrgent)`: Returns surface border color by priority (urgent > active > hover highlight > muted border).
 
-#### Composite Style Objects
+#### Component Style Objects
 
-* `cardStyle(theme, isHovered, isActive, isUrgent)`:
-  Returns `{ background: color, border: color, borderWidth: int, radius: int }` for container cards (`DiskRow`, add-disk dialog).
-* `buttonStyle(theme, isHovered, isActive, isUrgent, isPressed)`:
-  Returns `{ background: color, border: color, borderWidth: int, foreground: color, radius: int }` for interactive buttons.
-* `toggleStyle(theme, isHovered, isChecked)`:
-  Returns `{ trackBackground: color, trackBorder: color, knobColor: color, ringBorder: color, radius: int, trackRadius: int }` for toggle controls, guaranteeing identical hover ring corner radius to action buttons.
-* `badgeStyle(theme, status)`:
-  Returns `{ background: color, border: color, borderWidth: int, text: color, radius: int }` for status tags (`"missing"`, `"failing"`, `"warning"`, `"passed"`, `"working"`, `"muted"`).
-* `tooltipStyle(theme)`:
-  Returns `{ background: color, border: color, borderWidth: int, text: color, radius: int, fontSize: int }` for flyout tooltip overlays.
-* `progressGaugeStyle(theme, percent, isUrgent)`:
-  Returns `{ trackColor: color, fillColor: color, radius: int }` for capacity and maintenance progress bars.
+- `cardStyle(theme, isHovered, isActive, isUrgent)`:
+  Returns `{ background, border, borderWidth, radius }` for container cards.
+- `buttonStyle(theme, isHovered, isActive, isUrgent, isPressed)`:
+  Returns `{ background, border, borderWidth, foreground, radius }` for buttons.
+- `toggleStyle(theme, isHovered, isChecked)`:
+  Returns `{ trackBackground, trackBorder, knobColor, ringBorder, radius, trackRadius }` for toggle controls.
+- `badgeStyle(theme, status)`:
+  Returns `{ background, border, borderWidth, text, radius }` for status badges (`"missing"`, `"failing"`, `"warning"`, `"passed"`, `"working"`, `"muted"`).
+- `tooltipStyle(theme)`:
+  Returns `{ background, border, borderWidth, text, radius, fontSize }` for tooltip overlays.
+- `progressGaugeStyle(theme, percent, isUrgent)`:
+  Returns `{ trackColor, fillColor, radius }` for progress bars.
 
-#### Typography & Sizing Helpers
+#### Typography and Sizes
 
-* `fontSize(token)`: Standardized type ramp:
-  * `"captionSmall"`: 9px (or `caption * 0.85`)
-  * `"caption"`: 10px (`Style.font.caption`)
-  * `"bodySmall"`: 11px (`Style.font.bodySmall`)
-  * `"body"`: 12px (`Style.font.body`)
-  * `"subtitle"`: 13px (`Style.font.subtitle`)
-  * `"title"`: 14px (`Style.font.title`)
-  * `"heading"`: 16px (`Style.font.heading`)
-  * `"display"`: 24px (`Style.font.display`)
-* `iconSize(token)`: Standard icon dimensions (`"small"`: 14, `"bar"`: 16, `"row"`: 24, `"header"`: 26, `"large"`: 32).
-* `paddingFor(role)`: Standard padding structures (`"control"`, `"card"`, `"badge"`, `"flyout"`).
+- `fontSize(token)`: Standard font ramp:
+  - `"captionSmall"`: 9px
+  - `"caption"`: 10px
+  - `"bodySmall"`: 11px
+  - `"body"`: 12px
+  - `"subtitle"`: 13px
+  - `"title"`: 14px
+  - `"heading"`: 16px
+  - `"display"`: 24px
+- `iconSize(token)`: Standard icon dimensions (`"small"`: 14, `"bar"`: 16, `"row"`: 24, `"header"`: 26, `"large"`: 32).
+- `paddingFor(role)`: Standard padding sizes (`"control"`, `"card"`, `"badge"`, `"flyout"`).
 
-### 6.3 Tooltip & Interactive Control Uniformity (`ActionButton.qml`, `ToggleSwitch.qml`, `StyledToolTip.qml`)
+### 6.3 Control Uniformity
 
-To eliminate upstream border bugs and shape discrepancies:
-- All interactive controls (`ActionButton`, `ToggleSwitch`) standardize on `ThemeStyle.radiusFor("button")` and `radiusFor("toggleRing")`, ensuring identical rounded corner radii (`Math.min(base, 6)` or `0` on sharp themes).
-- Flyout controls use `qml/Components/StyledToolTip.qml` to enforce consistent tooltip backgrounds, subtle borders, text color, and corner rounding.
+- Controls (`ActionButton`, `ToggleSwitch`) use `ThemeStyle.radiusFor("button")` and `radiusFor("toggleRing")`. This ensures identical corner radii (`Math.min(base, 6)` or `0`).
+- Flyout controls use `qml/Components/StyledToolTip.qml` for consistent backgrounds, borders, text colors, and corner rounding.
 
+---
+
+## 7. Related Documentation
+
+- [CLI Reference](cli-reference.md): Subcommands, flags, and JSON response formats.
+- [Btrfs Guide](btrfs-guide.md): Btrfs RAID1 operations, maintenance, and recovery.
+- [References](references.md): External links and technical API specifications.

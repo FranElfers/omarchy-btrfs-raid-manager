@@ -190,8 +190,8 @@ Ui.Panel {
         ActionButton {
           Layout.fillWidth: true
           text: (root.pool.scrub && root.pool.scrub.active) ? "Cancel Scrub" : "Scrub Pool"
-          active: root.pool.scrub && root.pool.scrub.active
-          destructive: root.pool.scrub && root.pool.scrub.active
+          active: (root.pool.scrub && root.pool.scrub.active) === true
+          destructive: (root.pool.scrub && root.pool.scrub.active) === true
           tooltipText: "Scan and verify data checksums across disks to detect and repair silent data corruption"
           onClicked: {
             if (root.pool.mountpoint) {
@@ -204,8 +204,8 @@ Ui.Panel {
         ActionButton {
           Layout.fillWidth: true
           text: (root.pool.balance && root.pool.balance.active) ? "Cancel Balance" : "Balance Pool"
-          active: root.pool.balance && root.pool.balance.active
-          destructive: root.pool.balance && root.pool.balance.active
+          active: (root.pool.balance && root.pool.balance.active) === true
+          destructive: (root.pool.balance && root.pool.balance.active) === true
           tooltipText: "Reallocate under-utilized chunks across drives to reclaim unused storage capacity"
           onClicked: {
             if (root.pool.mountpoint) {
@@ -220,7 +220,7 @@ Ui.Panel {
       ColumnLayout {
         Layout.fillWidth: true
         spacing: Style.space(4)
-        visible: (root.pool.scrub && root.pool.scrub.active) || (root.pool.balance && root.pool.balance.active)
+        visible: (root.pool.scrub && root.pool.scrub.active === true) || (root.pool.balance && root.pool.balance.active === true)
 
         RowLayout {
           Layout.fillWidth: true
@@ -301,7 +301,7 @@ Ui.Panel {
         }
 
         Ui.ToggleSwitch {
-          checked: (root.pool.scrub && root.pool.scrub.timer_enabled) || (root.pool.balance && root.pool.balance.timer_enabled)
+          checked: ((root.pool.scrub && root.pool.scrub.timer_enabled) || (root.pool.balance && root.pool.balance.timer_enabled)) === true
           onToggled: {
             if (!root.pool.mountpoint) return
             var act = checked ? "enable" : "disable"

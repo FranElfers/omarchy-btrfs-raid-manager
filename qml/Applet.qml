@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
@@ -65,7 +66,7 @@ Item {
   }
 
   // Commit identification for live verification
-  property string commitId: "da9905b"
+  property string commitId: "cd0074e"
   readonly property bool tooltipHovered: visible && opacity > 0 && mouseArea.containsMouse && !root.opened
 
   Process {

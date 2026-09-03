@@ -325,9 +325,10 @@ Ui.Panel {
             root.runAdmin(["timer", act, root.pool.mountpoint, "balance"])
           }
 
-          ToolTip.visible: maintenanceSwitch.containsMouse
-          ToolTip.delay: 300
-          ToolTip.text: "Enable or disable parametric systemd timers (btrpool-scrub@.timer and btrpool-balance@.timer) for scheduled monthly scrubs and weekly balance routines"
+          Ui.PanelToolTip {
+            visible: maintenanceSwitch.containsMouse
+            text: "Enable or disable parametric systemd timers (btrpool-scrub@.timer and btrpool-balance@.timer) for scheduled monthly scrubs and weekly balance routines"
+          }
         }
       }
     }

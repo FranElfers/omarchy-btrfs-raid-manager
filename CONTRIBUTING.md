@@ -18,7 +18,7 @@ All contributors are expected to follow our [Code of Conduct](CODE_OF_CONDUCT.md
 
 ### Prerequisites
 
-- Go (1.27+)
+- Go (1.24+)
 - Omarchy Desktop Environment with Quickshell
 - `btrfs-progs` (v6.0+)
 - `udisks2` and `systemd`

@@ -17,13 +17,13 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.27"
+          go-version: "1.24"
           cache: true
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.65.0
+          version: latest
           args: --timeout=5m
 
       - name: Validate Polkit Policy XML
@@ -63,7 +63,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.27"
+          go-version: "1.24"
           cache: true
 
       - name: Build Binary

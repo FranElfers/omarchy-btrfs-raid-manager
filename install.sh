@@ -34,7 +34,7 @@ for arg in "$@"; do
   --enable) enable_now="yes" ;;
   --system) install_system="yes" ;;
   --keep-data) keep_data="yes" ;;
-  --reload | --restart) restart_shell="yes" ;;
+  --reload) ;;
   --no-restart) restart_shell="no" ;;
   -h | --help)
     sed -n '2,15p' "${BASH_SOURCE[0]}" | sed 's/^# \?//'
@@ -96,10 +96,7 @@ if [[ $install_system == yes ]]; then
   install -Dm644 "$source_dir/polkit/org.omarchy.btrfs.raidmanager.policy" /usr/share/polkit-1/actions/org.omarchy.btrfs.raidmanager.policy
 
   echo "Installing systemd units and timers..."
-  install -Dm644 "$source_dir/systemd/btrpool-scrub@.service" /etc/systemd/system/btrpool-scrub@.service
-  install -Dm644 "$source_dir/systemd/btrpool-scrub@.timer" /etc/systemd/system/btrpool-scrub@.timer
-  install -Dm644 "$source_dir/systemd/btrpool-balance@.service" /etc/systemd/system/btrpool-balance@.service
-  install -Dm644 "$source_dir/systemd/btrpool-balance@.timer" /etc/systemd/system/btrpool-balance@.timer
+  install -Dm644 -t /etc/systemd/system "$source_dir"/systemd/btrpool-*
   systemctl daemon-reload
   echo "System components installed successfully."
   exit 0

@@ -10,7 +10,7 @@ A resident Go companion streams state as NDJSON. It listens to D-Bus signals (`U
 
 ```sh
 omarchy plugin add https://github.com/franelfers/omarchy-btrfs-raid-manager.git --enable
-omarchy bar move io.github.franelfers.btrfs-raid-manager --section right
+omarchy bar move org.omarchy.btrfs-raid-manager --section right
 omarchy restart shell
 ```
 
@@ -32,17 +32,10 @@ cd omarchy-btrfs-raid-manager
 
 Mount and unmount use the standard UDisks2 Polkit rules. No setup needed.
 
-Install the bundled Polkit policy to allow `device add/remove/replace`:
+Install the Polkit policy (for `device add/remove/replace`) and the systemd units (for scheduled scrub and balance):
 
 ```sh
-sudo cp polkit/org.omarchy.btrfs.raidmanager.policy /usr/share/polkit-1/actions/
-```
-
-Install the systemd units to allow scheduled scrub and balance:
-
-```sh
-sudo cp systemd/btrpool-* /etc/systemd/system/
-sudo systemctl daemon-reload
+sudo ./install.sh --system
 ```
 
 ## Usage

@@ -385,10 +385,10 @@ func BuildState(
 				balanceStatus, _ = btrClient.GetBalanceStatus(ctx, mountpoint)
 			}
 			if sysClient != nil {
-				scrubService, _ = sysClient.GetUnitStatus(ctx, systemd.ScrubServiceName(mountpoint))
-				scrubTimer, _ = sysClient.GetUnitStatus(ctx, systemd.ScrubTimerName(mountpoint))
-				balanceService, _ = sysClient.GetUnitStatus(ctx, systemd.BalanceServiceName(mountpoint))
-				balanceTimer, _ = sysClient.GetUnitStatus(ctx, systemd.BalanceTimerName(mountpoint))
+				scrubService, _ = sysClient.GetUnitStatus(ctx, systemd.UnitName("scrub", mountpoint, "service"))
+				scrubTimer, _ = sysClient.GetUnitStatus(ctx, systemd.UnitName("scrub", mountpoint, "timer"))
+				balanceService, _ = sysClient.GetUnitStatus(ctx, systemd.UnitName("balance", mountpoint, "service"))
+				balanceTimer, _ = sysClient.GetUnitStatus(ctx, systemd.UnitName("balance", mountpoint, "timer"))
 			}
 		}
 
@@ -434,8 +434,6 @@ func profileDataRatio(profile string) float64 {
 		return 3.0
 	case "RAID1C4":
 		return 4.0
-	case "SINGLE", "RAID0":
-		return 1.0
 	default:
 		return 1.0
 	}

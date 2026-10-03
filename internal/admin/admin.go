@@ -95,7 +95,7 @@ func (h *Handler) Scrub(ctx context.Context, action, mountpoint string) error {
 	defer conn.Close()
 
 	sysClient := systemd.NewClient(conn)
-	unitName := systemd.ScrubServiceName(mountpoint)
+	unitName := systemd.UnitName("scrub", mountpoint, "service")
 
 	switch strings.ToLower(action) {
 	case "start":
@@ -123,7 +123,7 @@ func (h *Handler) Balance(ctx context.Context, action, mountpoint string) error 
 	defer conn.Close()
 
 	sysClient := systemd.NewClient(conn)
-	unitName := systemd.BalanceServiceName(mountpoint)
+	unitName := systemd.UnitName("balance", mountpoint, "service")
 
 	switch strings.ToLower(action) {
 	case "start":
@@ -155,9 +155,9 @@ func (h *Handler) Timer(ctx context.Context, action, mountpoint, kind string) er
 
 	switch strings.ToLower(kind) {
 	case "scrub":
-		timerName = systemd.ScrubTimerName(mountpoint)
+		timerName = systemd.UnitName("scrub", mountpoint, "timer")
 	case "balance":
-		timerName = systemd.BalanceTimerName(mountpoint)
+		timerName = systemd.UnitName("balance", mountpoint, "timer")
 	default:
 		return fmt.Errorf("unknown timer kind '%s', must be 'scrub' or 'balance'", kind)
 	}

@@ -57,24 +57,9 @@ func EscapePath(path string) string {
 	return b.String()
 }
 
-// ScrubServiceName returns the parametric service name for a given mountpoint.
-func ScrubServiceName(mountpoint string) string {
-	return fmt.Sprintf("btrpool-scrub@%s.service", EscapePath(mountpoint))
-}
-
-// ScrubTimerName returns the parametric timer name for a given mountpoint.
-func ScrubTimerName(mountpoint string) string {
-	return fmt.Sprintf("btrpool-scrub@%s.timer", EscapePath(mountpoint))
-}
-
-// BalanceServiceName returns the parametric service name for a given mountpoint.
-func BalanceServiceName(mountpoint string) string {
-	return fmt.Sprintf("btrpool-balance@%s.service", EscapePath(mountpoint))
-}
-
-// BalanceTimerName returns the parametric timer name for a given mountpoint.
-func BalanceTimerName(mountpoint string) string {
-	return fmt.Sprintf("btrpool-balance@%s.timer", EscapePath(mountpoint))
+// UnitName returns the parametric unit name, e.g. UnitName("scrub", "/mnt/datos", "timer") is "btrpool-scrub@mnt-datos.timer".
+func UnitName(kind, mountpoint, suffix string) string {
+	return fmt.Sprintf("btrpool-%s@%s.%s", kind, EscapePath(mountpoint), suffix)
 }
 
 // GetUnitStatus fetches the live active and unit file state for a unit.

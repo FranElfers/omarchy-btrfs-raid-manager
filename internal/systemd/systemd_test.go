@@ -25,16 +25,16 @@ func TestEscapePath(t *testing.T) {
 
 func TestUnitNames(t *testing.T) {
 	mp := "/mnt/datos"
-	if s := ScrubServiceName(mp); s != "btrpool-scrub@mnt-datos.service" {
+	if s := UnitName("scrub", mp, "service"); s != "btrpool-scrub@mnt-datos.service" {
 		t.Errorf("expected btrpool-scrub@mnt-datos.service, got %s", s)
 	}
-	if tm := ScrubTimerName(mp); tm != "btrpool-scrub@mnt-datos.timer" {
+	if tm := UnitName("scrub", mp, "timer"); tm != "btrpool-scrub@mnt-datos.timer" {
 		t.Errorf("expected btrpool-scrub@mnt-datos.timer, got %s", tm)
 	}
-	if b := BalanceServiceName(mp); b != "btrpool-balance@mnt-datos.service" {
+	if b := UnitName("balance", mp, "service"); b != "btrpool-balance@mnt-datos.service" {
 		t.Errorf("expected btrpool-balance@mnt-datos.service, got %s", b)
 	}
-	if btm := BalanceTimerName(mp); btm != "btrpool-balance@mnt-datos.timer" {
+	if btm := UnitName("balance", mp, "timer"); btm != "btrpool-balance@mnt-datos.timer" {
 		t.Errorf("expected btrpool-balance@mnt-datos.timer, got %s", btm)
 	}
 }
